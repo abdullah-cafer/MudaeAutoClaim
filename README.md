@@ -16,7 +16,7 @@ This Python-based Discord bot automates the process of claiming characters in th
 1. **Install Python 3.7+:** Make sure you have Python 3.7 or higher installed on your system.
 2. **Install Dependencies:**
    ```bash
-   pip install discord.py inquirer
+   pip install discord.py-self inquirer
    ```
 3. **Configure Presets:**
    Create a `presets.json` file with the following structure:
