@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import asyncio
 import discord
 from discord.ext import commands
@@ -174,20 +174,34 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 for button in component.children:
                     if button.emoji and button.emoji.name in ['kakeraY', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
                         await button.click()
-                        log_function(f"[{client.user}] Claimed character: {msg.embeds[0].author.name}", preset_name)
-                        log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character: {msg.embeds[0].author.name}")
+                        log_function(f"[{client.user}] Claimed Kakera: {msg.embeds[0].author.name}", preset_name)
+                        log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed Kakera: {msg.embeds[0].author.name}")
                         await asyncio.sleep(3)
                         return
                     elif button.emoji and button.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️']:
-                        await button.click()
+                        # Claim limitini kontrol et
+                        if msg.embeds:
+                            embed = msg.embeds[0]
+                            match = re.search(r"Claims: \#(\d+)", embed.description)
+                            if match:
+                                claims_value = int(match.group(1))
+                                if claims_value < claim_limit:
+                                    await button.click()
+                                    log_function(f"[{client.user}] Claimed character: {msg.embeds[0].author.name}", preset_name)
+                                    log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character: {msg.embeds[0].author.name}")
+                                    await asyncio.sleep(3)
+                                    return
+        else:
+            # Claim limitini kontrol et
+            if msg.embeds:
+                embed = msg.embeds[0]
+                match = re.search(r"Claims: \#(\d+)", embed.description)
+                if match:
+                    claims_value = int(match.group(1))
+                    if claims_value < claim_limit:
+                        await msg.add_reaction("✅")
                         log_function(f"[{client.user}] Claimed character: {msg.embeds[0].author.name}", preset_name)
                         log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character: {msg.embeds[0].author.name}")
-                        await asyncio.sleep(3)
-                        return
-        else:
-            await msg.add_reaction("✅")
-            log_function(f"[{client.user}] Claimed character: {msg.embeds[0].author.name}", preset_name)
-            log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character: {msg.embeds[0].author.name}")
 
 
     async def check_new_characters(client, channel):
