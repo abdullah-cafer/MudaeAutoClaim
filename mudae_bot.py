@@ -153,9 +153,11 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 match = re.search(r"Claims: \#(\d+)", embed.description)
                 if match:
                     claims_value = int(match.group(1))
-                    if claims_value < claim_limit and claims_value < min_claims:
-                        min_claims = claims_value
-                        min_message = msg
+                    # Kakera emojisi olup olmadığını kontrol et
+                    if not any(button.emoji.name in ['kakeraY', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL'] for component in msg.components for button in component.children):
+                        if claims_value < claim_limit and claims_value < min_claims:
+                            min_claims = claims_value
+                            min_message = msg
 
 
         if min_message:
