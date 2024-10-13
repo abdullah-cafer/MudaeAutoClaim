@@ -153,7 +153,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 match = re.search(r"Claims: \#(\d+)", embed.description)
                 if match:
                     claims_value = int(match.group(1))
-                    # Kakera emojisi olup olmadığını kontrol et
+                    # Check if there is a kakera emoji
                     if not any(button.emoji.name in ['kakeraY', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL'] for component in msg.components for button in component.children):
                         if claims_value < claim_limit and claims_value < min_claims:
                             min_claims = claims_value
@@ -181,7 +181,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                         await asyncio.sleep(3)
                         return
                     elif button.emoji and button.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️']:
-                        # Claim limitini kontrol et
+                        # Check claim limit
                         if msg.embeds:
                             embed = msg.embeds[0]
                             match = re.search(r"Claims: \#(\d+)", embed.description)
@@ -194,7 +194,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                                     await asyncio.sleep(3)
                                     return
         else:
-            # Claim limitini kontrol et
+            # Check claim limit
             if msg.embeds:
                 embed = msg.embeds[0]
                 match = re.search(r"Claims: \#(\d+)", embed.description)
