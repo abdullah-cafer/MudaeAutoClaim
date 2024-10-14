@@ -13,7 +13,7 @@ This Python-based Discord bot automates the process of claiming characters in th
 
 ## Installation
 
-1. **Install Python 3.8+:** Make sure you have Python 3.7 or higher installed on your system.
+1. **Install Python 3.8+:** Make sure you have Python 3.8 or higher installed on your system.
 2. **Install Dependencies:**
    ```bash
    pip install discord.py-self inquirer
