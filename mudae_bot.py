@@ -238,7 +238,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                         log_function(f"[{client.user}] Claimed Kakera: {msg.embeds[0].author.name}", preset_name)
                         log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed Kakera: {msg.embeds[0].author.name}")
                         await asyncio.sleep(3)
-                        return  # Exit the function after clicking the Kakera button
+
 
         # If no Kakera button, check for other claim buttons
         if msg.components:
@@ -373,4 +373,4 @@ def select_and_run_multiple_presets():
 
 
 if __name__ == "__main__":
-    main_menu() 
+    main_menu()
