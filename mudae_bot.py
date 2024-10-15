@@ -239,8 +239,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                         log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed Kakera: {msg.embeds[0].author.name}")
                         await asyncio.sleep(3)
 
-
-        # If no Kakera button, check for other claim buttons
+        # Check for other claim buttons after handling Kakera
         if msg.components:
             for component in msg.components:
                 for button in component.children:
