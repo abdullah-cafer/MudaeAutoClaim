@@ -119,7 +119,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
 
     async def check_rolls_left(client, channel, ignore_claim_limit=False):
         await channel.send(f"{mudae_prefix}ru")  # Check remaining rolls
-        await asyncio.sleep(1)
+        start_time = time.time()
         try:
             async for msg in channel.history(limit=1):
                 if msg.author.id == TARGET_BOT_ID and "rolls" in msg.content.lower():
@@ -137,11 +137,23 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                             log_function(f"[{client.user}] Rolls left: {rolls_left}", preset_name)
                             await start_roll_commands(client, channel, rolls_left, ignore_claim_limit)
                             return
+                    else:
+                        log_function(f"[{client.user}] Couldn't find roll count in the message.", preset_name)
+                        await asyncio.sleep(3) # Wait for 3 seconds
+                        await check_rolls_left(client, channel)
+                        return
+
 
         except Exception as e:
-            log_function(f"[{client.user}] Failed to retrieve roll count: {e}", preset_name)
-            await asyncio.sleep(5)
-            await check_rolls_left(client, channel)
+            elapsed_time = time.time() - start_time
+            if elapsed_time < 2:
+                await asyncio.sleep(2-elapsed_time)
+                log_function(f"[{client.user}] Failed to retrieve roll count: {e}. Retrying...", preset_name)
+                await check_rolls_left(client, channel)
+            else:
+                log_function(f"[{client.user}] Failed to retrieve roll count: {e}. Retrying...", preset_name)
+                await check_rolls_left(client, channel)
+
 
 
     async def start_roll_commands(client, channel, rolls_left, ignore_claim_limit=False):
@@ -159,34 +171,53 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                     break
 
         if ignore_claim_limit:
-            # Ignore claim limit 
+            # Ignore claim limit and consider embed color
             if mudae_messages:
-                min_message = mudae_messages[0] 
-                min_claims = float('inf')
+                min_message = None
                 for msg in mudae_messages:
                     if msg.embeds:
                         embed = msg.embeds[0]
-                        match = re.search(r"Claims: \#(\d+)", embed.description)
-                        if match:
-                            claims_value = int(match.group(1))
-                            if not any(button.emoji.name in ['kakeraY', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL'] for component in msg.components for button in component.children):
-                                if claims_value < min_claims:
-                                    min_claims = claims_value
-                                    min_message = msg
+                        if embed.color.value not in [16751916, 1360437]: 
+                            min_message = msg
+                            break  # Claim the first character that meets the criteria
+
+                if not min_message: # If no character meets the criteria, check for those with specified colors and consider claim limit
+                    min_message = mudae_messages[0]
+                    min_claims = float('inf')
+                    for msg in mudae_messages:
+                        if msg.embeds:
+                            embed = msg.embeds[0]
+                            if embed.color.value in [16751916, 1360437]:
+                                match = re.search(r"Claims: \#(\d+)", embed.description)
+                                if match:
+                                    claims_value = int(match.group(1))
+                                    if not any(button.emoji.name in ['kakeraY', 'kakeraT', 'kakeraG', 'kakera', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL'] for component in msg.components for button in component.children):
+                                        if claims_value < min_claims:
+                                            min_claims = claims_value
+                                            min_message = msg
         else:
-            # Consider claim limit
+            # Consider claim limit and embed color
             min_claims = float('inf')
             min_message = None
             for msg in mudae_messages:
                 if msg.embeds:
                     embed = msg.embeds[0]
-                    match = re.search(r"Claims: \#(\d+)", embed.description)
-                    if match:
-                        claims_value = int(match.group(1))
-                        if not any(button.emoji.name in ['kakeraY', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL'] for component in msg.components for button in component.children):
-                            if claims_value < claim_limit and claims_value < min_claims:
-                                min_claims = claims_value
-                                min_message = msg
+                    if embed.color.value not in [16751916, 1360437]:
+                        min_message = msg
+                        break # Claim the first character that meets the criteria
+
+            if not min_message: # If no character meets the criteria, check for those with specified colors and consider claim limit
+                for msg in mudae_messages:
+                    if msg.embeds:
+                        embed = msg.embeds[0]
+                        if embed.color.value in [16751916, 1360437]:
+                            match = re.search(r"Claims: \#(\d+)", embed.description)
+                            if match:
+                                claims_value = int(match.group(1))
+                                if not any(button.emoji.name in ['kakeraY', 'kakeraT', 'kakeraG', 'kakera', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL'] for component in msg.components for button in component.children):
+                                    if claims_value < claim_limit and claims_value < min_claims:
+                                        min_claims = claims_value
+                                        min_message = msg
 
         if min_message:
             await handle_character(client, channel, min_message)
@@ -202,7 +233,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
         if msg.components:
             for component in msg.components:
                 for button in component.children:
-                    if button.emoji and button.emoji.name in ['kakeraY', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
+                    if button.emoji and button.emoji.name in ['kakeraY','kakeraT','kakeraG','kakera', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
                         await button.click()
                         log_function(f"[{client.user}] Claimed Kakera: {msg.embeds[0].author.name}", preset_name)
                         log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed Kakera: {msg.embeds[0].author.name}")
@@ -214,27 +245,41 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
             for component in msg.components:
                 for button in component.children:
                     if button.emoji and button.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️']:
-                        # Check claim limit
+                        # Check claim limit and embed color
                         if msg.embeds:
                             embed = msg.embeds[0]
-                            match = re.search(r"Claims: \#(\d+)", embed.description)
-                            if match:
-                                claims_value = int(match.group(1))
+                            if embed.color.value not in [16751916, 1360437]:
                                 await button.click()
-                                log_function(f"[{client.user}] Claimed character: {msg.embeds[0].author.name}", preset_name)
-                                log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character: {msg.embeds[0].author.name}")
+                                log_function(f"[{client.user}] Claimed character (any claim): {msg.embeds[0].author.name}", preset_name)
+                                log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character (any claim): {msg.embeds[0].author.name}")
                                 await asyncio.sleep(3)
                                 return
+                            else: # If embed color is one of the specified colors, consider claim limit
+                                match = re.search(r"Claims: \#(\d+)", embed.description)
+                                if match:
+                                    claims_value = int(match.group(1))
+                                    if claims_value < claim_limit:
+                                        await button.click()
+                                        log_function(f"[{client.user}] Claimed character: {msg.embeds[0].author.name}", preset_name)
+                                        log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character: {msg.embeds[0].author.name}")
+                                        await asyncio.sleep(3)
+                                        return
         else:
-            # Check claim limit and react to claim the character
+            # Check claim limit and embed color and react to claim the character
             if msg.embeds:
                 embed = msg.embeds[0]
-                match = re.search(r"Claims: \#(\d+)", embed.description)
-                if match:
-                    claims_value = int(match.group(1))
+                if embed.color.value not in [16751916, 1360437]:
                     await msg.add_reaction("✅")
-                    log_function(f"[{client.user}] Claimed character: {msg.embeds[0].author.name}", preset_name)
-                    log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character: {msg.embeds[0].author.name}")
+                    log_function(f"[{client.user}] Claimed character (any claim): {msg.embeds[0].author.name}", preset_name)
+                    log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character (any claim): {msg.embeds[0].author.name}")
+                else:
+                    match = re.search(r"Claims: \#(\d+)", embed.description)
+                    if match:
+                        claims_value = int(match.group(1))
+                        if claims_value < claim_limit:
+                            await msg.add_reaction("✅")
+                            log_function(f"[{client.user}] Claimed character: {msg.embeds[0].author.name}", preset_name)
+                            log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character: {msg.embeds[0].author.name}")
 
 
     async def check_new_characters(client, channel):
