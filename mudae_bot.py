@@ -79,14 +79,14 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                                 total_minutes = hours * 60 + minutes
                                 if total_minutes <= 60:
                                     log_function(f"[{client.user}] Claim right available and reset within 1 hour. Ignoring claim limit.", preset_name)
-                                    await check_rolls_left(client, channel, ignore_claim_limit=True) 
+                                    await check_rolls_left(client, channel, ignore_claim_limit=True)
                                 else:
                                     log_function(f"[{client.user}] Claim right available. Applying claim limit.", preset_name)
-                                    await check_rolls_left(client, channel) 
+                                    await check_rolls_left(client, channel)
                                 return
                             else:
                                 log_function(f"[{client.user}] Claim right available. Applying claim limit.", preset_name)
-                                await check_rolls_left(client, channel) 
+                                await check_rolls_left(client, channel)
                                 return
                         elif "you can't claim" in msg.content.lower():
                             log_function(f"[{client.user}] Claim right not available.", preset_name)
@@ -103,14 +103,14 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                                 log_function(f"[{client.user}] Waiting time not found. Retrying in 1 hour.", preset_name)
                                 await display_time(3600 + delay_seconds, log_function, preset_name)
                                 await asyncio.sleep(3600 + delay_seconds)
-                            
+
                             # Retry claim rights after the waiting period
-                            await check_claim_rights(client, channel) 
+                            await check_claim_rights(client, channel)
                             return
 
                         else:
                             log_function(f"[{client.user}] Claim right check failed. Retrying in 5 seconds.", preset_name)
-                            await asyncio.sleep(5) # Wait for 5 seconds
+                            await asyncio.sleep(5)  # Wait for 5 seconds
 
             except Exception as e:
                 log_function(f"[{client.user}] Error: {e}", preset_name)
@@ -139,7 +139,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                             return
                     else:
                         log_function(f"[{client.user}] Couldn't find roll count in the message.", preset_name)
-                        await asyncio.sleep(3) # Wait for 3 seconds
+                        await asyncio.sleep(3)  # Wait for 3 seconds
                         await check_rolls_left(client, channel)
                         return
 
@@ -147,14 +147,12 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
         except Exception as e:
             elapsed_time = time.time() - start_time
             if elapsed_time < 2:
-                await asyncio.sleep(2-elapsed_time)
+                await asyncio.sleep(2 - elapsed_time)
                 log_function(f"[{client.user}] Failed to retrieve roll count: {e}. Retrying...", preset_name)
                 await check_rolls_left(client, channel)
             else:
                 log_function(f"[{client.user}] Failed to retrieve roll count: {e}. Retrying...", preset_name)
                 await check_rolls_left(client, channel)
-
-
 
     async def start_roll_commands(client, channel, rolls_left, ignore_claim_limit=False):
         for _ in range(rolls_left):
@@ -170,115 +168,57 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 if len(mudae_messages) == rolls_left:
                     break
 
-        if ignore_claim_limit:
-            # Ignore claim limit and consider embed color
-            if mudae_messages:
-                min_message = None
-                for msg in mudae_messages:
-                    if msg.embeds:
-                        embed = msg.embeds[0]
-                        if embed.color.value not in [16751916, 1360437]: 
-                            min_message = msg
-                            break  # Claim the first character that meets the criteria
-
-                if not min_message: # If no character meets the criteria, check for those with specified colors and consider claim limit
-                    min_message = mudae_messages[0]
-                    min_claims = float('inf')
-                    for msg in mudae_messages:
-                        if msg.embeds:
-                            embed = msg.embeds[0]
-                            if embed.color.value in [16751916, 1360437]:
-                                match = re.search(r"Claims: \#(\d+)", embed.description)
-                                if match:
-                                    claims_value = int(match.group(1))
-                                    if not any(button.emoji.name in ['kakeraY', 'kakeraT', 'kakeraG', 'kakera', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL'] for component in msg.components for button in component.children):
-                                        if claims_value < min_claims:
-                                            min_claims = claims_value
-                                            min_message = msg
-        else:
-            # Consider claim limit and embed color
-            min_claims = float('inf')
-            min_message = None
-            for msg in mudae_messages:
-                if msg.embeds:
-                    embed = msg.embeds[0]
-                    if embed.color.value not in [16751916, 1360437]:
-                        min_message = msg
-                        break # Claim the first character that meets the criteria
-
-            if not min_message: # If no character meets the criteria, check for those with specified colors and consider claim limit
-                for msg in mudae_messages:
-                    if msg.embeds:
-                        embed = msg.embeds[0]
-                        if embed.color.value in [16751916, 1360437]:
-                            match = re.search(r"Claims: \#(\d+)", embed.description)
-                            if match:
-                                claims_value = int(match.group(1))
-                                if not any(button.emoji.name in ['kakeraY', 'kakeraT', 'kakeraG', 'kakera', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL'] for component in msg.components for button in component.children):
-                                    if claims_value < claim_limit and claims_value < min_claims:
-                                        min_claims = claims_value
-                                        min_message = msg
-
-        if min_message:
-            await handle_character(client, channel, min_message)
+        # Roll'lar bittikten sonra karakter ve Kakera ara
+        for msg in mudae_messages:
+            await handle_character(client, channel, msg, ignore_claim_limit)
 
         await asyncio.sleep(3)
         await check_claim_rights(client, channel)
 
-
-    async def handle_character(client, channel, msg):
+    async def handle_character(client, channel, msg, ignore_claim_limit=False):
         global log_list
 
-        # Check for Kakera buttons first and click if available
-        if msg.components:
-            for component in msg.components:
-                for button in component.children:
-                    if button.emoji and button.emoji.name in ['kakeraY','kakeraT','kakeraG','kakera', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
-                        await button.click()
-                        log_function(f"[{client.user}] Claimed Kakera: {msg.embeds[0].author.name}", preset_name)
-                        log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed Kakera: {msg.embeds[0].author.name}")
-                        await asyncio.sleep(3)
+        if msg.embeds:
+            embed = msg.embeds[0]
 
-        # Check for other claim buttons after handling Kakera
-        if msg.components:
-            for component in msg.components:
-                for button in component.children:
-                    if button.emoji and button.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️']:
-                        # Check claim limit and embed color
-                        if msg.embeds:
-                            embed = msg.embeds[0]
-                            if embed.color.value not in [16751916, 1360437]:
-                                await button.click()
-                                log_function(f"[{client.user}] Claimed character (any claim): {msg.embeds[0].author.name}", preset_name)
-                                log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character (any claim): {msg.embeds[0].author.name}")
-                                await asyncio.sleep(3)
-                                return
-                            else: # If embed color is one of the specified colors, consider claim limit
-                                match = re.search(r"Claims: \#(\d+)", embed.description)
-                                if match:
-                                    claims_value = int(match.group(1))
-                                    if claims_value < claim_limit:
-                                        await button.click()
-                                        log_function(f"[{client.user}] Claimed character: {msg.embeds[0].author.name}", preset_name)
-                                        log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character: {msg.embeds[0].author.name}")
-                                        await asyncio.sleep(3)
-                                        return
-        else:
-            # Check claim limit and embed color and react to claim the character
-            if msg.embeds:
-                embed = msg.embeds[0]
-                if embed.color.value not in [16751916, 1360437]:
-                    await msg.add_reaction("✅")
-                    log_function(f"[{client.user}] Claimed character (any claim): {msg.embeds[0].author.name}", preset_name)
-                    log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character (any claim): {msg.embeds[0].author.name}")
-                else:
+            # Kakera butonları varsa önce onları işle
+            if msg.components:
+                for component in msg.components:
+                    for button in component.children:
+                        if button.emoji and button.emoji.name in ['kakeraY', 'kakeraT', 'kakeraG', 'kakera', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
+                            await button.click()
+                            log_function(f"[{client.user}] Claimed Kakera: {msg.embeds[0].author.name}", preset_name)
+                            log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed Kakera: {msg.embeds[0].author.name}")
+                            await asyncio.sleep(3)
+
+            # Renklere göre claim limiti kontrol et ve log mesajını ayarla
+            log_message = "Claimed Character"  # Varsayılan olarak karakter kabul et
+            if embed.color.value in [16751916, 1360437]:  # Normal karakter renkleri
+                # Claim limiti kontrol et (ignore_claim_limit False ise)
+                if not ignore_claim_limit:
                     match = re.search(r"Claims: \#(\d+)", embed.description)
                     if match:
                         claims_value = int(match.group(1))
-                        if claims_value < claim_limit:
-                            await msg.add_reaction("✅")
-                            log_function(f"[{client.user}] Claimed character: {msg.embeds[0].author.name}", preset_name)
-                            log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed character: {msg.embeds[0].author.name}")
+                        if claims_value >= claim_limit:
+                            return  # Claim limiti aşılırsa alma
+            else:
+                log_message = "Claimed Kakera"  # Kakera ise mesajı değiştir
+
+            # Claim butonu varsa tıkla, yoksa reaksiyon ekle
+            if msg.components:
+                for component in msg.components:
+                    for button in component.children:
+                        if button.emoji and button.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️']:
+                            await button.click()
+                            log_function(f"[{client.user}] {log_message}: {msg.embeds[0].author.name}", preset_name)
+                            log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
+                            await asyncio.sleep(3)
+                            return
+            else:
+                await msg.add_reaction("✅")
+                log_function(f"[{client.user}] {log_message}: {msg.embeds[0].author.name}", preset_name)
+                log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
+                await asyncio.sleep(3)
 
 
     async def check_new_characters(client, channel):
@@ -291,7 +231,6 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                     if match:
                         claims_value = int(match.group(1))
                         log_function(f"[{client.user}] New character: {embed.author.name} (Claims: #{claims_value})", preset_name)
-
 
     async def display_time(seconds, log_function, preset_name):
         # Calculate and display the retry time
