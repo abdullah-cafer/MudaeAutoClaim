@@ -169,13 +169,17 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                     break
 
         # Roll'lar bittikten sonra karakter ve Kakera ara
+        lowest_claim = None
+        lowest_claim_message = None
+
         for msg in mudae_messages:
-            await handle_character(client, channel, msg, ignore_claim_limit)
+            await handle_character(client, channel, msg, ignore_claim_limit, lowest_claim, lowest_claim_message)
+
 
         await asyncio.sleep(3)
         await check_claim_rights(client, channel)
 
-    async def handle_character(client, channel, msg, ignore_claim_limit=False):
+    async def handle_character(client, channel, msg, ignore_claim_limit=False, lowest_claim=None, lowest_claim_message=None):
         global log_list
 
         if msg.embeds:
@@ -194,31 +198,35 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
             # Renklere göre claim limiti kontrol et ve log mesajını ayarla
             log_message = "Claimed Character"  # Varsayılan olarak karakter kabul et
             if embed.color.value in [16751916, 1360437]:  # Normal karakter renkleri
-                # Claim limiti kontrol et (ignore_claim_limit False ise)
-                if not ignore_claim_limit:
-                    match = re.search(r"Claims: \#(\d+)", embed.description)
-                    if match:
-                        claims_value = int(match.group(1))
-                        if claims_value >= claim_limit:
-                            return  # Claim limiti aşılırsa alma
+                # Claim sayısını al
+                match = re.search(r"Claims: \#(\d+)", embed.description)
+                if match:
+                    claims_value = int(match.group(1))
+
+                    # En düşük claim sayısını takip et ve claim limitini kontrol et
+                    if (not lowest_claim or claims_value < lowest_claim) and claims_value < claim_limit:
+                        lowest_claim = claims_value
+                        lowest_claim_message = msg  # En düşük claim'li mesajı kaydet
             else:
                 log_message = "Claimed Kakera"  # Kakera ise mesajı değiştir
 
-            # Claim butonu varsa tıkla, yoksa reaksiyon ekle
-            if msg.components:
-                for component in msg.components:
-                    for button in component.children:
-                        if button.emoji and button.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️']:
-                            await button.click()
-                            log_function(f"[{client.user}] {log_message}: {msg.embeds[0].author.name}", preset_name)
-                            log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
-                            await asyncio.sleep(3)
-                            return
-            else:
-                await msg.add_reaction("✅")
-                log_function(f"[{client.user}] {log_message}: {msg.embeds[0].author.name}", preset_name)
-                log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
-                await asyncio.sleep(3)
+            # Sadece en düşük claim sayısına sahip ve claim limitinden düşük olan mesajı işleme al
+            if msg == lowest_claim_message:
+                # Claim butonu varsa tıkla, yoksa reaksiyon ekle
+                if msg.components:
+                    for component in msg.components:
+                        for button in component.children:
+                            if button.emoji and button.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️']:
+                                await button.click()
+                                log_function(f"[{client.user}] {log_message}: {msg.embeds[0].author.name}", preset_name)
+                                log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
+                                await asyncio.sleep(3)
+                                return
+                else:
+                    await msg.add_reaction("✅")
+                    log_function(f"[{client.user}] {log_message}: {msg.embeds[0].author.name}", preset_name)
+                    log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
+                    await asyncio.sleep(3)
 
 
     async def check_new_characters(client, channel):
