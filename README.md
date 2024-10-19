@@ -2,6 +2,10 @@
 
 This Python-based Discord bot automates the process of claiming characters in the popular Mudae bot. It allows you to configure multiple accounts, set claim limits, and customize delays to maximize your chances of collecting your favorite waifus and husbandos.
 
+
+**WARNING:** This bot is intended for personal use only and is designed to function as a selfbot. Using selfbots on Discord violates the Discord Terms of Service and can result in account suspension or termination. **Use this bot at your own risk.**
+
+
 ## Features
 
 * **Multi-Account Support:** Manage and run multiple bot accounts with individual settings.
@@ -70,4 +74,4 @@ console.log(`%cYou now have your token in the clipboard!`, 'font-size: 16px'); `
 
 ## Contributing
 
-Contributions are welcome! Feel free to submit pull requests or open issues if you find bugs or have suggestions for improvements.
+Contributions are welcome! Feel free to submit pull requests or open issues if you find bugs or have suggestions for improvements. 
