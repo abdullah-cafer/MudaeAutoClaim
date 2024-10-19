@@ -43,12 +43,29 @@ This Python-based Discord bot automates the process of claiming characters in th
 
 ## Usage
 
-1. **Create Discord Bot Accounts:** Create Discord bot accounts for each server where you want to use the bot.
-2. **Obtain Bot Tokens:** Get the bot tokens for each account from the Discord Developer Portal.
-3. **Configure `presets.json`:** Fill in the `presets.json` file with the bot tokens, channel IDs, and other settings for each account.
-4. **Run the Script:** Execute `python mudae_bot.py` to start the bot.
-5. **Select Presets:** Choose the presets you want to run from the terminal menu.
-6. **Monitor Logs:** Observe the console output for claimed characters and other events.
+1. **Obtain Tokens:** Paste this into the console in the discord window in the browser to access the token: ``` window.webpackChunkdiscord_app.push([
+  [Math.random()],
+  {},
+  req => {
+    if (!req.c) return;
+    for (const m of Object.keys(req.c)
+      .map(x => req.c[x].exports)
+      .filter(x => x)) {
+      if (m.default && m.default.getToken !== undefined) {
+        return copy(m.default.getToken());
+      }
+      if (m.getToken !== undefined) {
+        return copy(m.getToken());
+      }
+    }
+  },
+]);
+console.log('%cWorked!', 'font-size: 50px');
+console.log(`%cYou now have your token in the clipboard!`, 'font-size: 16px'); ```
+2. **Configure `presets.json`:** Fill in the `presets.json` file with the bot tokens, channel IDs, and other settings for each account.
+3. **Run the Script:** Execute `python mudae_bot.py` to start the bot.
+4. **Select Presets:** Choose the presets you want to run from the terminal menu.
+5. **Monitor Logs:** Observe the console output for claimed characters and other events.
 
 
 ## Contributing
