@@ -70,22 +70,39 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
             try:
                 async for msg in channel.history(limit=1):
                     if msg.author.id == TARGET_BOT_ID:
-                        if "right now" in msg.content.lower():
-                            log_function(f"[{client.user}] Claim right available. Applying claim limit.", preset_name)
-                            await check_rolls_left(client, channel)
-                            return
+                        if "right now" in msg.content.lower(): 
+                            match = re.search(r"The next claim reset is in \*\*(\d+h)?\s*(\d+)\*\* min\.", msg.content)
+                            if match:
+                                hours = int(match.group(1)[:-1]) if match.group(1) else 0
+                                minutes = int(match.group(2))
+                                remaining_seconds = (hours * 60 + minutes) * 60
+
+                                if remaining_seconds <= 3600:  # Check if less than 1 hour
+                                    log_function(f"[{client.user}] Claim right available and less than 1 hour remaining.", preset_name)
+                                    await check_rolls_left(client, channel, ignore_limit=True) # Send the ignore_limit flag
+                                else:
+                                    log_function(f"[{client.user}] Claim right available. Applying claim limit.", preset_name)
+                                    await check_rolls_left(client, channel)
+                            
+                                return
+
+                            else:
+                                log_function(f"[{client.user}] Couldn't extract time from message.")
+                                return
                         elif "you can't claim" in msg.content.lower():
                             log_function(f"[{client.user}] Claim right not available.", preset_name)
+
                             # Extract the waiting time
                             match = re.search(r"you can't claim for another \*\*(\d+h)?\s*(\d+)\*\* min\.", msg.content)
                             if match:
                                 hours = int(match.group(1)[:-1]) if match.group(1) else 0
                                 minutes = int(match.group(2))
                                 total_seconds = (hours * 60 + minutes) * 60
-
+                            
                                 log_function(f"[{client.user}] Claim right not available. Will retry in {hours} hours {minutes} minutes.", preset_name)
                                 await display_time(total_seconds + delay_seconds, log_function, preset_name)
                                 await asyncio.sleep(total_seconds + delay_seconds)
+
                             else:
                                 log_function(f"[{client.user}] Waiting time not found. Retrying in 1 hour.", preset_name)
                                 await display_time(3600 + delay_seconds, log_function, preset_name)
@@ -95,16 +112,18 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                             await check_claim_rights(client, channel)
                             return
 
+
                         else:
                             log_function(f"[{client.user}] Claim right check failed. Retrying in 5 seconds.", preset_name)
                             await asyncio.sleep(5)  # Wait for 5 seconds
-
+            
             except Exception as e:
                 log_function(f"[{client.user}] Error: {e}", preset_name)
 
-            await asyncio.sleep(60 + delay_seconds)
+        await asyncio.sleep(60 + delay_seconds) 
 
-    async def check_rolls_left(client, channel):
+
+    async def check_rolls_left(client, channel, ignore_limit=False):
         await channel.send(f"{mudae_prefix}ru")  # Check remaining rolls
         start_time = time.time()
         try:
@@ -122,14 +141,13 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                             return
                         else:
                             log_function(f"[{client.user}] Rolls left: {rolls_left}", preset_name)
-                            await start_roll_commands(client, channel, rolls_left, reset_minutes) 
+                            await start_roll_commands(client, channel, rolls_left, ignore_limit)
                             return
                     else:
                         log_function(f"[{client.user}] Couldn't find roll count in the message.", preset_name)
                         await asyncio.sleep(3)  # Wait for 3 seconds
                         await check_rolls_left(client, channel)
                         return
-
 
         except Exception as e:
             elapsed_time = time.time() - start_time
@@ -141,7 +159,8 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 log_function(f"[{client.user}] Failed to retrieve roll count: {e}. Retrying...", preset_name)
                 await check_rolls_left(client, channel)
 
-    async def start_roll_commands(client, channel, rolls_left, reset_minutes):
+
+    async def start_roll_commands(client, channel, rolls_left, ignore_limit=False):
         for _ in range(rolls_left):
             await channel.send(f"{mudae_prefix}{roll_command}")  # Send roll command
             await asyncio.sleep(0.3)
@@ -154,23 +173,17 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 mudae_messages.append(msg)
 
         # Tüm roll mesajlarını işle
-        await handle_mudae_messages(client, channel, mudae_messages, reset_minutes)
+        await handle_mudae_messages(client, channel, mudae_messages, ignore_limit)
 
         await asyncio.sleep(3)
         await check_claim_rights(client, channel)
 
-
-    async def handle_mudae_messages(client, channel, mudae_messages, reset_minutes):
+    async def handle_mudae_messages(client, channel, mudae_messages, ignore_limit=False):
         # En düşük claim'li karakter ve Kakera mesajlarını bul
         lowest_claim_character = None
         lowest_claim_character_message = None
         lowest_claim_kakera = None
         lowest_claim_kakera_message = None
-
-        time_until_refresh = reset_minutes * 60  # Time in seconds until refresh
-        time_left_before_refresh = time_until_refresh % 3600  # Time in seconds until refresh (less than 1 hour)
-
-        ignore_claim_limit = (time_left_before_refresh <= 3600)
 
         for msg in mudae_messages:
             if msg.embeds:
@@ -194,7 +207,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                         claims_value = int(match.group(1))
 
                         # En düşük claim sayısını takip et ve claim limitini kontrol et
-                        if (not lowest_claim_character or claims_value < lowest_claim_character) and (ignore_claim_limit or claims_value < claim_limit):
+                        if (not lowest_claim_character or claims_value < lowest_claim_character) and (ignore_limit or claims_value < claim_limit):
                             lowest_claim_character = claims_value
                             lowest_claim_character_message = msg
                 else:  # Kakera mesajı
