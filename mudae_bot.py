@@ -125,8 +125,9 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
 
     async def check_rolls_left(client, channel, ignore_limit=False):
         await channel.send(f"{mudae_prefix}ru")  # Check remaining rolls
-        start_time = time.time()
+
         try:
+            start_time = time.time()
             async for msg in channel.history(limit=1):
                 if msg.author.id == TARGET_BOT_ID and "rolls" in msg.content.lower():
                     matches = re.findall(r"\d+", msg.content)
@@ -143,22 +144,14 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                             log_function(f"[{client.user}] Rolls left: {rolls_left}", preset_name)
                             await start_roll_commands(client, channel, rolls_left, ignore_limit)
                             return
-                    else:
-                        log_function(f"[{client.user}] Couldn't find roll count in the message.", preset_name)
-                        await asyncio.sleep(3)  # Wait for 3 seconds
-                        await check_rolls_left(client, channel)
-                        return
+            
+            if time.time() - start_time > 5:
+                log_function(f"[{client.user}] No roll message received within 5 seconds. Resending ru command.", preset_name)
+                await check_rolls_left(client, channel)
 
         except Exception as e:
-            elapsed_time = time.time() - start_time
-            if elapsed_time < 2:
-                await asyncio.sleep(2 - elapsed_time)
-                log_function(f"[{client.user}] Failed to retrieve roll count: {e}. Retrying...", preset_name)
-                await check_rolls_left(client, channel)
-            else:
-                log_function(f"[{client.user}] Failed to retrieve roll count: {e}. Retrying...", preset_name)
-                await check_rolls_left(client, channel)
-
+            log_function(f"[{client.user}] Error while checking rolls: {e}", preset_name)
+            await check_claim_rights(client, channel) # Proceed to claim check regardless of error
 
     async def start_roll_commands(client, channel, rolls_left, ignore_limit=False):
         for _ in range(rolls_left):
