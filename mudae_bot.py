@@ -158,6 +158,8 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
             await channel.send(f"{mudae_prefix}{roll_command}")  # Send roll command
             await asyncio.sleep(0.3)
 
+        await asyncio.sleep(3)
+        
         await check_new_characters(client, channel)
 
         mudae_messages = []
@@ -229,7 +231,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
         if msg.components:
             for component in msg.components:
                 for button in component.children:
-                    if button.emoji and button.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️']:
+                    if button.emoji and button.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️', '🪐']:
                         await button.click()
                         log_function(f"[{client.user}] {log_message}: {msg.embeds[0].author.name}", preset_name)
                         log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
