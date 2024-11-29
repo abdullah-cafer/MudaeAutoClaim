@@ -33,7 +33,7 @@ log_list = []
 preset_logs = {}
 
 
-def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_seconds, mudae_prefix, log_function, preset_name):
+def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_seconds, mudae_prefix, log_function, preset_name, key_mode):
     client = commands.Bot(command_prefix=prefix)
     client.claim_limit = claim_limit
 
@@ -41,6 +41,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
     async def on_ready():
         log_function(f"[{client.user}] Bot is ready.", preset_name)
         log_function(f"[{client.user}] Delay: {delay_seconds} seconds", preset_name)
+        log_function(f"[{client.user}] Key Mode: {'Enabled' if key_mode else 'Disabled'}", preset_name)
         await asyncio.sleep(delay_seconds)
 
         channel = client.get_channel(target_channel_id)
@@ -85,9 +86,14 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                                 hours = int(match.group(1)[:-1]) if match.group(1) else 0
                                 minutes = int(match.group(2))
                                 total_seconds = (hours * 60 + minutes) * 60
-                                log_function(f"[{client.user}] Claim right not available. Will retry in {hours}h {minutes}min.", preset_name)
-                                await display_time(total_seconds + delay_seconds, log_function, preset_name)
-                                await asyncio.sleep(total_seconds + delay_seconds)
+                                if key_mode:
+                                    log_function(f"[{client.user}] Claim right not available, but Key Mode is enabled. Rolling for kakera only.", preset_name)
+                                    await check_rolls_left(client, channel, ignore_limit=True, key_mode_only_kakera=True)
+                                    return
+                                else:
+                                    log_function(f"[{client.user}] Claim right not available. Will retry in {hours}h {minutes}min.", preset_name)
+                                    await display_time(total_seconds + delay_seconds, log_function, preset_name)
+                                    await asyncio.sleep(total_seconds + delay_seconds)
                             else:
                                 raise ValueError("Waiting time not found.")
                             await check_claim_rights(client, channel)
@@ -115,10 +121,9 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 await asyncio.sleep(60 + delay_seconds)
                 continue
 
-        await asyncio.sleep(60 + delay_seconds)
 
 
-    async def check_rolls_left(client, channel, ignore_limit=False):
+    async def check_rolls_left(client, channel, ignore_limit=False, key_mode_only_kakera=False):
         error_count = 0
         while True:
             await channel.send(f"{mudae_prefix}ru")  # Check remaining rolls
@@ -141,7 +146,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                                 return
                             else:
                                 log_function(f"[{client.user}] Rolls left: {rolls_left}", preset_name)
-                                await start_roll_commands(client, channel, rolls_left, ignore_limit)
+                                await start_roll_commands(client, channel, rolls_left, ignore_limit, key_mode_only_kakera)
                                 return
                         else:
                             raise ValueError("Roll information could not be parsed.")
@@ -156,17 +161,19 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                     log_function(f"[{client.user}] Roll check failed. Retrying in 5 seconds.", preset_name)
                     await asyncio.sleep(5)
                 continue
+
             except Exception as e:
-                error_count += 1
-                log_function(f"[{client.user}] Error while checking rolls: {e}", preset_name)
-                if error_count >= 5:
-                    log_function(f"[{client.user}] 5 consecutive errors occurred. Retrying in 1 hour.", preset_name)
-                    await asyncio.sleep(3600)
-                    error_count = 0
-                else:
-                    log_function(f"[{client.user}] Roll check failed. Retrying in 5 seconds.", preset_name)
-                    await asyncio.sleep(5)
-                continue
+                 error_count += 1
+                 log_function(f"[{client.user}] Error while checking rolls: {e}", preset_name)
+                 if error_count >= 5:
+                     log_function(f"[{client.user}] 5 consecutive errors occurred. Retrying in 1 hour.", preset_name)
+                     await asyncio.sleep(3600)
+                     error_count = 0
+                 else:
+                     log_function(f"[{client.user}] Roll check failed. Retrying in 5 seconds.", preset_name)
+                     await asyncio.sleep(5)
+                 continue
+
             finally:
                 if not response_received:
                     if time.time() - start_time > 5:
@@ -179,10 +186,14 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                         else:
                              log_function(f"[{client.user}] Roll check failed. Retrying in 5 seconds.", preset_name)
                              await asyncio.sleep(5)
+
                         continue
 
 
-    async def start_roll_commands(client, channel, rolls_left, ignore_limit=False):
+
+
+
+    async def start_roll_commands(client, channel, rolls_left, ignore_limit=False, key_mode_only_kakera=False):
         for _ in range(rolls_left):
             await channel.send(f"{mudae_prefix}{roll_command}")  # Send roll command
             await asyncio.sleep(0.3)
@@ -196,16 +207,18 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
             if msg.author.id == TARGET_BOT_ID:
                 mudae_messages.append(msg)
 
-        await handle_mudae_messages(client, channel, mudae_messages, ignore_limit)
+        await handle_mudae_messages(client, channel, mudae_messages, ignore_limit, key_mode_only_kakera)
 
         await asyncio.sleep(3)
         await check_claim_rights(client, channel)
 
-    async def handle_mudae_messages(client, channel, mudae_messages, ignore_limit=False):
+
+    async def handle_mudae_messages(client, channel, mudae_messages, ignore_limit=False, key_mode_only_kakera=False):
         lowest_claim_character = None
         lowest_claim_character_message = None
         lowest_claim_kakera = None
         lowest_claim_kakera_message = None
+
 
         for msg in mudae_messages:
             if msg.embeds:
@@ -214,7 +227,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 if msg.components:
                     for component in msg.components:
                         for button in component.children:
-                            if button.emoji and button.emoji.name in ['kakeraY', 'kakeraT', 'kakeraG', 'kakera', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
+                            if button.emoji and button.emoji.name in ['kakeraY', 'kakeraP', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
                                 await button.click()
                                 log_function(f"[{client.user}] Claimed Kakera: {msg.embeds[0].author.name}", preset_name)
                                 log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed Kakera: {msg.embeds[0].author.name}")
@@ -238,8 +251,9 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                             lowest_claim_kakera_message = msg
 
 
-        if lowest_claim_character_message:
-            await claim_character(client, channel, lowest_claim_character_message)
+        if not key_mode_only_kakera:
+            if lowest_claim_character_message:
+                await claim_character(client, channel, lowest_claim_character_message)
 
 
         if lowest_claim_kakera_message:
@@ -258,7 +272,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                         log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
                         await asyncio.sleep(3)
                         return
-        else: # buton yoksa reaksiyon dene
+        else:
             try:
                 await msg.add_reaction("✅")
                 log_function(f"[{client.user}] {log_message}: {msg.embeds[0].author.name}", preset_name)
@@ -266,6 +280,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 await asyncio.sleep(3)
             except discord.errors.HTTPException:
                  log_function(f"[{client.user}] Reaksiyon eklenemedi. Muhtemelen karakter başkası tarafından çoktan alındı.", preset_name)
+
 
 
     async def check_new_characters(client, channel):
@@ -327,11 +342,12 @@ def select_and_run_preset():
     selected_preset = answers['preset']
 
     preset = presets[selected_preset]
+    key_mode = preset.get("key_mode", False)
 
     threading.Thread(target=run_bot, args=(preset["token"], preset["prefix"],
                                              preset["channel_id"], preset["roll_command"],
                                              preset["claim_limit"], preset["delay_seconds"],
-                                             preset["mudae_prefix"], print_log, selected_preset)).start()
+                                             preset["mudae_prefix"], print_log, selected_preset, key_mode)).start()
 
 
 
@@ -352,10 +368,11 @@ def select_and_run_multiple_presets():
 
     for preset_name in selected_presets:
         preset = presets[preset_name]
+        key_mode = preset.get("key_mode", False)
         threading.Thread(target=run_bot, args=(preset["token"], preset["prefix"],
                                                  preset["channel_id"], preset["roll_command"],
                                                  preset["claim_limit"], preset["delay_seconds"],
-                                                 preset["mudae_prefix"], print_log, preset_name)).start()
+                                                 preset["mudae_prefix"], print_log, preset_name, key_mode)).start()
 
 
 
