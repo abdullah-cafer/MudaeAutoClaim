@@ -60,7 +60,6 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
         while True:
             await channel.send(f"{mudae_prefix}mu")
             await asyncio.sleep(1)
-
             try:
                 async for msg in channel.history(limit=1):
                     if msg.author.id == TARGET_BOT_ID:
@@ -108,8 +107,8 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 error_count += 1
                 log_function(f"[{client.user}] Error: {e}", preset_name)
                 if error_count >= 5:
-                    log_function(f"[{client.user}] 5 consecutive errors occurred. Retrying in 1 hour.", preset_name)
-                    await asyncio.sleep(3600)
+                    log_function(f"[{client.user}] 5 consecutive errors occurred. Retrying in 30 minutes.", preset_name)
+                    await asyncio.sleep(1800)
                     error_count = 0
                 else:
                     log_function(f"[{client.user}] Claim right check failed. Retrying in 5 seconds.", preset_name)
@@ -118,9 +117,8 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
 
             except Exception as e:
                 log_function(f"[{client.user}] Error: {e}", preset_name)
-                await asyncio.sleep(60 + delay_seconds)
+                await asyncio.sleep(30 + delay_seconds)
                 continue
-
 
 
     async def check_rolls_left(client, channel, ignore_limit=False, key_mode_only_kakera=False):
@@ -129,7 +127,6 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
             await channel.send(f"{mudae_prefix}ru")  # Check remaining rolls
             start_time = time.time()
             response_received = False
-
             try:
                 async for msg in channel.history(limit=1):
                     if msg.author.id == TARGET_BOT_ID and "rolls" in msg.content.lower():
@@ -150,55 +147,52 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                                 return
                         else:
                             raise ValueError("Roll information could not be parsed.")
+
             except ValueError as e:
                 error_count += 1
                 log_function(f"[{client.user}] Error: {e}", preset_name)
                 if error_count >= 5:
-                    log_function(f"[{client.user}] 5 consecutive errors occurred. Retrying in 1 hour.", preset_name)
-                    await asyncio.sleep(3600)
+                    log_function(f"[{client.user}] 5 consecutive errors occurred. Retrying in 30 minutes.", preset_name)
+                    await asyncio.sleep(1800)
+                    error_count = 0
+                else:
+                   log_function(f"[{client.user}] Roll check failed. Retrying in 5 seconds.", preset_name)
+                   await asyncio.sleep(5)
+                continue
+
+            except Exception as e:
+                error_count += 1
+                log_function(f"[{client.user}] Error while checking rolls: {e}", preset_name)
+                if error_count >= 5:
+                    log_function(f"[{client.user}] 5 consecutive errors occurred while checking rolls. Retrying in 30 minutes.", preset_name)
+                    await asyncio.sleep(1800)
                     error_count = 0
                 else:
                     log_function(f"[{client.user}] Roll check failed. Retrying in 5 seconds.", preset_name)
                     await asyncio.sleep(5)
                 continue
 
-            except Exception as e:
-                 error_count += 1
-                 log_function(f"[{client.user}] Error while checking rolls: {e}", preset_name)
-                 if error_count >= 5:
-                     log_function(f"[{client.user}] 5 consecutive errors occurred. Retrying in 1 hour.", preset_name)
-                     await asyncio.sleep(3600)
-                     error_count = 0
-                 else:
-                     log_function(f"[{client.user}] Roll check failed. Retrying in 5 seconds.", preset_name)
-                     await asyncio.sleep(5)
-                 continue
 
             finally:
                 if not response_received:
                     if time.time() - start_time > 5:
                         error_count += 1
-                        log_function(f"[{client.user}] No roll message received within 5 seconds. Resending ru command.", preset_name)
+                        log_function(f"[{client.user}] No roll message received within 5 seconds.", preset_name)
                         if error_count >= 5:
-                            log_function(f"[{client.user}] 5 consecutive errors occurred. Retrying in 1 hour.", preset_name)
-                            await asyncio.sleep(3600)
+                            log_function(f"[{client.user}] 5 consecutive errors occurred. Retrying in 30 minutes.", preset_name)
+                            await asyncio.sleep(1800)
                             error_count = 0
                         else:
-                             log_function(f"[{client.user}] Roll check failed. Retrying in 5 seconds.", preset_name)
-                             await asyncio.sleep(5)
-
+                            log_function(f"[{client.user}] Roll check failed. Retrying in 5 seconds.", preset_name)
+                            await asyncio.sleep(5)
                         continue
-
-
-
-
 
     async def start_roll_commands(client, channel, rolls_left, ignore_limit=False, key_mode_only_kakera=False):
         for _ in range(rolls_left):
             await channel.send(f"{mudae_prefix}{roll_command}")  # Send roll command
             await asyncio.sleep(0.3)
 
-        await asyncio.sleep(3)
+        await asyncio.sleep(4)
 
         await check_new_characters(client, channel)
 
@@ -209,9 +203,8 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
 
         await handle_mudae_messages(client, channel, mudae_messages, ignore_limit, key_mode_only_kakera)
 
-        await asyncio.sleep(3)
+        await asyncio.sleep(2)
         await check_claim_rights(client, channel)
-
 
     async def handle_mudae_messages(client, channel, mudae_messages, ignore_limit=False, key_mode_only_kakera=False):
         lowest_claim_character = None
@@ -227,7 +220,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                 if msg.components:
                     for component in msg.components:
                         for button in component.children:
-                            if button.emoji and button.emoji.name in ['kakeraY', 'kakeraP', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
+                            if button.emoji and button.emoji.name in ['kakeraY', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
                                 await button.click()
                                 log_function(f"[{client.user}] Claimed Kakera: {msg.embeds[0].author.name}", preset_name)
                                 log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed Kakera: {msg.embeds[0].author.name}")
@@ -293,11 +286,14 @@ def run_bot(token, prefix, target_channel_id, roll_command, claim_limit, delay_s
                         claims_value = int(match.group(1))
                         log_function(f"[{client.user}] New character: {embed.author.name} (Claims: #{claims_value})", preset_name)
 
+
+
     async def display_time(seconds, log_function, preset_name):
         now = datetime.datetime.now()
         retry_time = now + datetime.timedelta(seconds=seconds)
         formatted_time = retry_time.strftime("%H:%M")
         log_function(f"[{client.user}] Retry time: {formatted_time}", preset_name)
+
 
     client.run(token)
 
