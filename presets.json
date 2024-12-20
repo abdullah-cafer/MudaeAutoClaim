@@ -1,21 +1,23 @@
 {
   "preset1": {
     "token": "YOUR_BOT_TOKEN",
-    "prefix": "!", 
+    "prefix": "!",
     "channel_id": 1234567890,
     "roll_command": "wa",
     "claim_limit": 1000,
     "delay_seconds": 0,
-    "mudae_prefix": "$" 
+    "mudae_prefix": "$",
+    "min_kakera": 50
   },
   "preset2": {
     "token": "ANOTHER_BOT_TOKEN",
-    "prefix": ".", 
+    "prefix": ".",
     "channel_id": 9876543210,
     "roll_command": "wa",
     "claim_limit": 1000,
     "delay_seconds": 0,
-    "mudae_prefix": "$" 
+    "mudae_prefix": "$",
+    "min_kakera": 75
   },
   "preset3": {
     "token": "YOUR_THIRD_BOT_TOKEN",
@@ -24,6 +26,7 @@
     "roll_command": "wa",
     "claim_limit": 1000,
     "delay_seconds": 0,
-    "mudae_prefix": "$"
-  } 
-} 
+    "mudae_prefix": "$",
+    "min_kakera": 0
+  }
+}
