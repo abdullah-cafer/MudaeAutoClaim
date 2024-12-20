@@ -34,7 +34,7 @@ This Python-based Discord bot automates the process of claiming characters in th
        "claim_limit": 5,
        "delay_seconds": 1,
        "mudae_prefix": "$",
-       "min_kakera": 50  // Optional: Minimum kakera value to consider for claiming
+       "min_kakera": 50
      },
      "preset2": { ... }
    }
