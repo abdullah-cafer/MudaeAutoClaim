@@ -1,328 +1,433 @@
+import sys
 import asyncio
-import datetime
-import json
+import discord
+from discord.ext import commands
 import random
 import re
-import sys
+import json
+import os
 import threading
 import time
-from collections import deque
-
-import discord
+import subprocess
+import datetime
 import inquirer
-import keyboard
-from discord.ext import commands
-from rich.console import Console
-from rich.live import Live
-from rich.table import Table
 
-# Load presets
+# Load presets from JSON file
+presets = {}
 try:
-    presets = json.load(open("presets.json", "r"))
+    with open("presets.json", "r") as f:
+        presets = json.load(f)
 except FileNotFoundError:
-    print("presets.json not found.")
+    print("presets.json dosyası bulunamadı. Lütfen oluşturun ve gerekli bilgileri girin.")
     sys.exit(1)
 
+# Dictionary to store bots
+bots = {}
+
+# Target bot ID (Mudae's ID)
 TARGET_BOT_ID = 432610292342587392
-preset_statuses = {}
-preset_statuses_lock = threading.Lock()
-console = Console()
-running_presets = {}
+
+# Log list
+log_list = []
+
+# Preset logs
 preset_logs = {}
-MAX_LOG_LINES = 5
-current_page = 0
-presets_per_page = 5
 
-def update_status(name, char=None, status=None, reset=None):
-    with preset_statuses_lock:
-        if name not in preset_statuses:
-            preset_statuses[name] = {"last_character": "-", "status": "", "reset_time": ""}
-        if char:
-            preset_statuses[name]["last_character"] = char
-        if status:
-            preset_statuses[name]["status"] = status
-        if reset:
-            preset_statuses[name]["reset_time"] = reset
 
-def log_msg(msg, name, is_err=False):
-    ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_msg = f"[{ts}] [{name}] {msg}"
-    with open("logs.txt", "a") as f:
-        f.write(log_msg + "\n")
-    if is_err:
-        console.log(log_msg)
-    with preset_statuses_lock:
-        if name not in preset_logs:
-            preset_logs[name] = deque(maxlen=MAX_LOG_LINES)
-        preset_logs[name].append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {msg}")
-
-async def run_bot(preset_name):
-    preset = presets[preset_name]
-    client = commands.Bot(command_prefix=preset["prefix"])
-    client.min_kakera = preset["min_kakera"]
-    running_presets[preset_name] = True
-    key_mode = preset.get("key_mode", False)
-    delay = preset["delay_seconds"]
-    mudae_prefix = preset["mudae_prefix"]
-    target_channel_id = preset["channel_id"]
-    roll_command = preset["roll_command"]
+def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_seconds, mudae_prefix, log_function, preset_name, key_mode):
+    client = commands.Bot(command_prefix=prefix)
+    client.min_kakera = min_kakera
 
     @client.event
     async def on_ready():
-        log_msg(f"Bot ready, delay: {delay}s, Key Mode: {'On' if key_mode else 'Off'}", preset_name)
-        update_status(preset_name, status="Ready")
-        await asyncio.sleep(delay)
-        ch = client.get_channel(target_channel_id)
-        try:
-            for cmd in [f"{mudae_prefix}limroul 1 1 1 1", f"{mudae_prefix}dk", f"{mudae_prefix}daily"]:
-                await ch.send(cmd)
-                await asyncio.sleep(0.5)
-            await check_claim(client, ch)
-        except discord.errors.Forbidden as e:
-            log_msg(f"[bold red]Discord Error:[/bold red] Cannot send: {e}", preset_name, is_err=True)
-            update_status(preset_name, status="[bold red]Error:[/bold red] No Send Perms")
-            await client.close()
-        except Exception as e:
-            log_msg(f"[bold red]Error:[/bold red] Unexpected: {e}", preset_name, is_err=True)
-            update_status(preset_name, status=f"[bold red]Error:[/bold red] {e}")
-            await client.close()
-        finally:
-            running_presets.pop(preset_name, None)
+        log_function(f"[{client.user}] Bot is ready.", preset_name)
+        log_function(f"[{client.user}] Delay: {delay_seconds} seconds", preset_name)
+        log_function(f"[{client.user}] Key Mode: {'Enabled' if key_mode else 'Disabled'}", preset_name)
+        await asyncio.sleep(delay_seconds)
 
-    async def check_claim(client, ch):
-        update_status(preset_name, status="Checking Claim")
-        for attempt in range(5):
-            await ch.send(f"{mudae_prefix}mu")
+        channel = client.get_channel(target_channel_id)
+        try:
+            await channel.send(f"{mudae_prefix}limroul 1 1 1 1")
+            await asyncio.sleep(0.5)
+            await channel.send(f"{mudae_prefix}dk")
+            await asyncio.sleep(0.5)
+            await channel.send(f"{mudae_prefix}daily")
+            await asyncio.sleep(0.5)
+            await check_claim_rights(client, channel)
+        except discord.errors.Forbidden as e:
+            log_function(f"[{client.user}] Hata: Kanala mesaj göndereme iznim yok. {e}", preset_name)
+            await client.close()
+
+    async def check_claim_rights(client, channel):
+        log_function(f"[{client.user}] Checking claim rights...", preset_name)
+        error_count = 0
+        max_retries = 5
+        while True:
+            await channel.send(f"{mudae_prefix}mu")
             await asyncio.sleep(1)
             try:
-                async for msg in ch.history(limit=1):
+                async for msg in channel.history(limit=5):
                     if msg.author.id == TARGET_BOT_ID:
-                        content = msg.content.lower()
-                        if "right now" in content:
-                            match = re.search(r"in \*\*(\d+h)?\s*(\d+)\*\* min", content)
+                        if "right now" in msg.content.lower():
+                            match = re.search(r"The next claim reset is in \*\*(\d+h)?\s*(\d+)\*\* min\.", msg.content)
                             if match:
-                                h = int(match.group(1)[:-1]) if match.group(1) else 0
-                                m = int(match.group(2))
-                                secs = (h * 60 + m) * 60
-                                update_status(preset_name, status="Claim Ready", reset=f"{h}h {m}m" if secs <= 3600 else f"{h}h {m}m")
-                                await check_rolls(client, ch)
+                                hours = int(match.group(1)[:-1]) if match.group(1) else 0
+                                minutes = int(match.group(2))
+                                remaining_seconds = (hours * 60 + minutes) * 60
+
+                                if remaining_seconds <= 3600:
+                                    log_function(f"[{client.user}] Claim right available and less than 1 hour remaining.", preset_name)
+                                    await check_rolls_left(client, channel, ignore_limit=True)
+                                else:
+                                    log_function(f"[{client.user}] Claim right available. Applying claim limit.", preset_name)
+                                    await check_rolls_left(client, channel)
                                 return
-                            raise ValueError("No time info")
-                        elif "you can't claim" in content:
-                            match = re.search(r"another \*\*(\d+h)?\s*(\d+)\*\* min", content)
+                            else:
+                                raise ValueError("Time information could not be parsed.")
+                        elif "you can't claim" in msg.content.lower():
+                            match = re.search(r"you can't claim for another \*\*(\d+h)?\s*(\d+)\*\* min\.", msg.content)
                             if match:
-                                h = int(match.group(1)[:-1]) if match.group(1) else 0
-                                m = int(match.group(2))
-                                total_secs = (h * 60 + m) * 60
-                                update_status(preset_name, reset=f"{h}h {m}m")
+                                hours = int(match.group(1)[:-1]) if match.group(1) else 0
+                                minutes = int(match.group(2))
+                                total_seconds = (hours * 60 + minutes) * 60
                                 if key_mode:
-                                    update_status(preset_name, status="Key Mode - Rolling Kakera")
-                                    await check_rolls(client, ch, True, True)
+                                    log_function(f"[{client.user}] Claim right not available, but Key Mode is enabled. Rolling for kakera only.", preset_name)
+                                    await check_rolls_left(client, channel, ignore_limit=True, key_mode_only_kakera=True)
                                     return
                                 else:
-                                    update_status(preset_name, status=f"Waiting {h}h {m}m")
-                                    await wait(total_secs, delay, preset_name)
-                                    await check_claim(client, ch)
+                                    log_function(f"[{client.user}] Claim right not available. Will retry in {hours}h {minutes}min.", preset_name)
+                                    await wait_for_reset(total_seconds, delay_seconds, log_function, preset_name)
+                                    await check_claim_rights(client, channel)
                                     return
-                            raise ValueError("No wait time")
-                        raise ValueError("Mudae msg not found")
-            except ValueError as e:
-                log_msg(f"[bold red]Error:[/bold red] {e}", preset_name, is_err=True)
-                update_status(preset_name, status=f"[bold red]Error:[/bold red] Checking claim ({attempt+1}/5)")
-                await asyncio.sleep(5)
-            except discord.errors.HTTPException as e:
-                log_msg(f"[bold red]Discord Error:[/bold red] HTTP claim check: {e}", preset_name, is_err=True)
-                update_status(preset_name, status=f"[bold red]Error:[/bold red] Checking claim ({attempt+1}/5)")
-                await asyncio.sleep(5)
-        log_msg(f"Max retries for claim. Retrying in 30 min.", preset_name, is_err=True)
-        update_status(preset_name, status="Retrying claim in 30m")
-        await asyncio.sleep(1800)
-        await check_claim(client, ch)
+                            else:
+                                raise ValueError("Waiting time not found.")
+                        else:
+                            raise ValueError("Mudae message not found.")
+                    else:
+                        raise ValueError("Mudae message not found.")
 
-    async def check_rolls(client, ch, ignore_limit=False, key_mode_only_kakera=False):
-        update_status(preset_name, status="Checking Rolls")
-        for attempt in range(5):
-            await ch.send(f"{mudae_prefix}ru")
+            except ValueError as e:
+                error_count += 1
+                log_function(f"[{client.user}] Error: {e}", preset_name)
+                if error_count >= max_retries:
+                    log_function(f"[{client.user}] Max retries reached for claim rights. Retrying in 30 minutes.", preset_name)
+                    await asyncio.sleep(1800)
+                    error_count = 0
+                else:
+                    log_function(f"[{client.user}] Claim right check failed. Retrying in 5 seconds.", preset_name)
+                    await asyncio.sleep(5)
+                continue
+
+            except Exception as e:
+                error_count += 1
+                log_function(f"[{client.user}] Error: {e}", preset_name)
+                if error_count >= max_retries:
+                    log_function(f"[{client.user}] Max retries reached for claim rights. Retrying in 30 minutes.", preset_name)
+                    await asyncio.sleep(1800)
+                    error_count = 0
+                else:
+                    log_function(f"[{client.user}] Claim right check failed. Retrying in 5 seconds.", preset_name)
+                    await asyncio.sleep(5)
+                continue
+
+
+    async def check_rolls_left(client, channel, ignore_limit=False, key_mode_only_kakera=False):
+        error_count = 0
+        max_retries = 5
+        while True:
+            await channel.send(f"{mudae_prefix}ru")
             await asyncio.sleep(1)
             try:
-                async for msg in ch.history(limit=5):
+                async for msg in channel.history(limit=5):
                     if msg.author.id == TARGET_BOT_ID and "roll" in msg.content.lower():
-                        match = re.search(r"You have \*\*(\d+)\*\* roll(?:s)?(?: \+\*\*(\d+)\*\* \$mk)? left", msg.content)
+                        match = re.search(r"You have \*\*(\d+)\*\* roll(?:s)?(?: \+\*\*(\d+)\*\* \$mk)? left\.", msg.content)
                         if not match:
-                            match = re.search(r"You have (\d+) rolls? left", msg.content)
+                            match = re.search(r"You have (\d+) rolls? left\.", msg.content)
+
                         if match:
-                            rolls = int(match.group(1))
+                            rolls_left = int(match.group(1))
                             reset_match = re.search(r"Next rolls? reset in \*\*(\d+)\*\* (min|h)", msg.content)
                             if reset_match:
-                                reset_time = int(reset_match.group(1)) * (60 if reset_match.group(2) == "h" else 1)
-                                update_status(preset_name, reset=f"{reset_time}m (Rolls)", status=f"Rolls: {rolls}")
+                                reset_time = int(reset_match.group(1))
+                                reset_unit = reset_match.group(2)
+                                if reset_unit == "h":
+                                    reset_time *= 60
                             else:
-                                update_status(preset_name, reset="Unknown (Rolls)", status=f"Rolls: {rolls}")
+                                reset_time = 0
+                                log_function(f"[{client.user}] Warning: Could not parse roll reset time.", preset_name)
 
-                            if rolls == 0:
-                                update_status(preset_name, status=f"No Rolls - Waiting {reset_time}m")
-                                await wait_rolls(reset_time, delay, preset_name)
-                                await check_claim(client, ch)
+                            if rolls_left == 0:
+                                log_function(f"[{client.user}] No rolls left. Reset in {reset_time} min.", preset_name)
+                                await wait_for_rolls_reset(reset_time, delay_seconds, log_function, preset_name)
+                                await check_claim_rights(client, channel)
                                 return
-                            await start_rolls(client, ch, rolls, ignore_limit, key_mode_only_kakera)
-                            return
-                        raise ValueError(f"No roll info: {msg.content}")
-                raise ValueError("No Mudae roll response")
+                            else:
+                                log_function(f"[{client.user}] Rolls left: {rolls_left}", preset_name)
+                                await start_roll_commands(client, channel, rolls_left, ignore_limit, key_mode_only_kakera)
+                                return
+                        else:
+                            log_function(f"[{client.user}] Could not parse roll information: {msg.content}", preset_name)
+                            raise ValueError(f"Could not parse roll information. Mudae's response was: {msg.content}")
+
+                raise ValueError("Mudae did not respond with roll information within the time limit.")
+
             except ValueError as e:
-                log_msg(f"[bold red]Error:[/bold red] {e}", preset_name, is_err=True)
-                update_status(preset_name, status=f"[bold red]Error:[/bold red] Checking rolls ({attempt+1}/5)")
-                await asyncio.sleep(5)
-            except discord.errors.HTTPException as e:
-                log_msg(f"[bold red]Discord Error:[/bold red] HTTP roll check: {e}", preset_name, is_err=True)
-                update_status(preset_name, status=f"[bold red]Error:[/bold red] Checking rolls ({attempt+1}/5)")
-                await asyncio.sleep(5)
-        log_msg(f"Max roll retries. Retrying in 30 min.", preset_name, is_err=True)
-        update_status(preset_name, status="Retrying rolls in 30m")
-        await asyncio.sleep(1800)
-        await check_claim(client, ch)
+                error_count += 1
+                log_function(f"[{client.user}] Error ({error_count}/{max_retries}): {e}", preset_name)
+                if error_count >= max_retries:
+                    log_function(f"[{client.user}] Max retries reached. Giving up on roll check. Retrying in 30 minutes.", preset_name)
+                    await asyncio.sleep(1800)
+                    error_count = 0
+                else:
+                    await asyncio.sleep(5)
+            except Exception as e:
+                error_count += 1
+                log_function(f"[{client.user}] Unexpected error ({error_count}/{max_retries}): {e}", preset_name)
+                if error_count >= max_retries:
+                    log_function(f"[{client.user}] Max retries reached. Giving up on roll check. Retrying in 30 minutes.", preset_name)
+                    await asyncio.sleep(1800)
+                    error_count = 0
+                else:
+                    await asyncio.sleep(5)
 
-    async def start_rolls(client, ch, rolls, ignore_limit, key_mode_only_kakera):
-        update_status(preset_name, status="Rolling")
-        for _ in range(rolls):
-            await ch.send(f"{mudae_prefix}{roll_command}")
+
+
+    async def start_roll_commands(client, channel, rolls_left, ignore_limit=False, key_mode_only_kakera=False):
+        for _ in range(rolls_left):
+            await channel.send(f"{mudae_prefix}{roll_command}")
             await asyncio.sleep(0.3)
+
         await asyncio.sleep(4)
-        mudae_msgs = [msg async for msg in ch.history(limit=rolls * 2, oldest_first=False) if msg.author.id == TARGET_BOT_ID]
-        await handle_rolls(client, ch, mudae_msgs, ignore_limit, key_mode_only_kakera)
+
+        await check_new_characters(client, channel)
+
+        mudae_messages = []
+        async for msg in channel.history(limit=rolls_left * 2, oldest_first=False):
+            if msg.author.id == TARGET_BOT_ID:
+                mudae_messages.append(msg)
+
+        await handle_mudae_messages(client, channel, mudae_messages, ignore_limit, key_mode_only_kakera)
+
         await asyncio.sleep(2)
-        await check_claim(client, ch)
+        await check_claim_rights(client, channel)
 
-    async def handle_rolls(client, ch, msgs, ignore_limit, key_mode_only_kakera):
-        claims = sorted([msg for msg in msgs if msg.embeds and msg.embeds[0].color.value in [16751916, 1360437]],
-                      key=lambda m: int(re.search(r"\*\*(\d+)\*\*<:kakera:", m.embeds[0].description).group(1)) if re.search(r"\*\*(\d+)\*\*<:kakera:", m.embeds[0].description) else 0, reverse=True)
-        other_claims = sorted([msg for msg in msgs if msg.embeds and msg.embeds[0].color.value not in [16751916, 1360437]],
-                             key=lambda m: int(re.search(r"\*\*(\d+)\*\*", m.embeds[0].description).group(1)) if m.embeds and re.search(r"\*\*(\d+)\*\*", m.embeds[0].description) else 0)
 
-        async def claim(msg, rt=False):
-            log_msg(f"{'Claimed Kakera' if 'kakera' in msg.embeds[0].description.lower() else ('Claimed with $rt' if rt else 'Claimed')}: {msg.embeds[0].author.name}", preset_name)
-            update_status(preset_name, char=msg.embeds[0].author.name)
-            for comp in msg.components:
-                for btn in comp.children:
-                    if btn.emoji and btn.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️', '🪐']:
+    async def handle_mudae_messages(client, channel, mudae_messages, ignore_limit=False, key_mode_only_kakera=False):
+        highest_claim_character = None
+        highest_claim_character_message = None
+        second_highest_claim_character = None
+        second_highest_claim_character_message = None
+        lowest_claim_kakera = None
+        lowest_claim_kakera_message = None
+        
+        for msg in mudae_messages:
+            if msg.embeds:
+                embed = msg.embeds[0]
+
+                if msg.components:
+                    for component in msg.components:
+                        for button in component.children:
+                            if button.emoji and button.emoji.name in ['kakeraY', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
+                                try:
+                                    await button.click()
+                                    log_function(f"[{client.user}] Claimed Kakera: {msg.embeds[0].author.name}", preset_name)
+                                    log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed Kakera: {msg.embeds[0].author.name}")
+                                    await asyncio.sleep(3)
+                                except discord.errors.HTTPException as e:
+                                    log_function(f"[{client.user}] Kakera claim hatası: {e}", preset_name)
+
+                if embed.color.value in [16751916, 1360437]:
+                    match = re.search(r"\*\*(\d+)\*\*<:kakera:", embed.description)
+                    if match:
+                        kakera_value = int(match.group(1))
+                        
+                        if (not highest_claim_character or kakera_value > highest_claim_character) and (ignore_limit or kakera_value > client.min_kakera):
+                            second_highest_claim_character = highest_claim_character
+                            second_highest_claim_character_message = highest_claim_character_message
+                            highest_claim_character = kakera_value
+                            highest_claim_character_message = msg
+                        elif (not second_highest_claim_character or kakera_value > second_highest_claim_character) and (ignore_limit or kakera_value > client.min_kakera):
+                             second_highest_claim_character = kakera_value
+                             second_highest_claim_character_message = msg
+
+                else:
+                    match = re.search(r"\*\*(\d+)\*\*", embed.description)
+                    if match:
+                        kakera_value = int(match.group(1))
+                        if (not lowest_claim_kakera or kakera_value < lowest_claim_kakera):
+                            lowest_claim_kakera = kakera_value
+                            lowest_claim_kakera_message = msg
+
+        if not key_mode_only_kakera:
+            if highest_claim_character_message:
+                await claim_character(client, channel, highest_claim_character_message)
+
+                if second_highest_claim_character_message:
+                   if second_highest_claim_character > client.min_kakera:
+                       await channel.send(f"{mudae_prefix}rt")
+                       await asyncio.sleep(0.5)
+                       await claim_character(client, channel, second_highest_claim_character_message, is_rt_claim=True)
+                   else:
+                       log_function(f"[{client.user}] $rt ile alınacak karakter limiti karşılamıyor.", preset_name)
+        elif key_mode_only_kakera:
+            if highest_claim_character_message:
+                if highest_claim_character > client.min_kakera:
+                    await channel.send(f"{mudae_prefix}rt")
+                    await asyncio.sleep(0.5)
+                    await claim_character(client, channel, highest_claim_character_message, is_rt_claim=True)
+                else:
+                    log_function(f"[{client.user}] $rt ile alınacak karakter limiti karşılamıyor.", preset_name)
+
+
+        if lowest_claim_kakera_message:
+            await claim_character(client, channel, lowest_claim_kakera_message, is_kakera=True)
+
+
+    async def claim_character(client, channel, msg, is_kakera=False, is_rt_claim=False):
+        log_message = "Claimed Kakera" if is_kakera else "Claimed Character"
+        if is_rt_claim:
+            log_message = "Claimed Character with $rt"
+
+
+        if msg.components:
+            for component in msg.components:
+                for button in component.children:
+                    if button.emoji and button.emoji.name in ['💖', '💗', '💘', '❤️', '💓', '💕', '♥️', '🪐']:
                         try:
-                            await btn.click()
+                            await button.click()
+                            log_function(f"[{client.user}] {log_message}: {msg.embeds[0].author.name}", preset_name)
+                            log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
                             await asyncio.sleep(3)
                             return
                         except discord.errors.HTTPException as e:
-                            log_msg(f"[bold red]Discord Error:[/bold red] Claim error: {e}", preset_name, is_err=True)
+                            log_function(f"[{client.user}] Karakter claim hatası: {e}", preset_name)
+        else:
             try:
                 await msg.add_reaction("✅")
+                log_function(f"[{client.user}] {log_message}: {msg.embeds[0].author.name}", preset_name)
+                log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
                 await asyncio.sleep(3)
-            except discord.errors.HTTPException as e:
-                log_msg(f"[bold red]Discord Error:[/bold red] Reaction error: {e}", preset_name, is_err=True)
+            except discord.errors.HTTPException:
+                log_function(f"[{client.user}] Reaksiyon eklenemedi. Muhtemelen karakter başkası tarafından çoktan alındı.", preset_name)
 
-        for msg in msgs:
-            if msg.components:
-                for comp in msg.components:
-                    for btn in comp.children:
-                        if btn.emoji and btn.emoji.name in ['kakeraY', 'kakeraO', 'kakeraR', 'kakeraW', 'kakeraL']:
-                            try:
-                                await btn.click()
-                                log_msg(f"Claimed Kakera: {msg.embeds[0].author.name}", preset_name)
-                                await asyncio.sleep(3)
-                            except discord.errors.HTTPException as e:
-                                log_msg(f"[bold red]Discord Error:[/bold red] Kakera claim error: {e}", preset_name, is_err=True)
 
-        if not key_mode_only_kakera:
-            if claims and (ignore_limit or int(re.search(r"\*\*(\d+)\*\*<:kakera:", claims[0].embeds[0].description).group(1)) > client.min_kakera):
-                await claim(claims[0])
-                if len(claims) > 1 and int(re.search(r"\*\*(\d+)\*\*<:kakera:", claims[1].embeds[0].description).group(1)) > client.min_kakera:
-                    await ch.send(f"{mudae_prefix}rt")
-                    await asyncio.sleep(0.5)
-                    await claim(claims[1], True)
-        elif key_mode_only_kakera and claims and int(re.search(r"\*\*(\d+)\*\*<:kakera:", claims[0].embeds[0].description).group(1)) > client.min_kakera:
-            await ch.send(f"{mudae_prefix}rt")
-            await asyncio.sleep(0.5)
-            await claim(claims[0], True)
 
-        if other_claims:
-            await claim(other_claims[0])
+    async def check_new_characters(client, channel):
+        async for msg in channel.history(limit=15):
+            if msg.author.id == TARGET_BOT_ID:
+                if msg.embeds:
+                    embed = msg.embeds[0]
+                    match = re.search(r"Claims: \#(\d+)", embed.description)
+                    if match:
+                        claims_value = int(match.group(1))
+                        log_function(f"[{client.user}] New character: {embed.author.name} (Claims: #{claims_value})", preset_name)
 
-    async def wait(secs, delay, name):
-        target_time = (datetime.datetime.now() + datetime.timedelta(seconds=secs)).replace(second=0, microsecond=0)
-        update_status(name, status="Waiting for reset", reset=target_time.strftime('%H:%M:%S'))
-        log_msg(f"Waiting for reset. Target: {target_time.strftime('%H:%M:%S')}, delay: {delay}s", name)
-        await asyncio.sleep(secs + delay)
-
-    async def wait_rolls(minutes, delay, name):
+    async def wait_for_reset(seconds, delay_seconds, log_function, preset_name):
         now = datetime.datetime.now()
-        target_minute = (now.minute + minutes) % 60
-        target_time = now.replace(minute=target_minute, second=0, microsecond=0)
+        target_time = now + datetime.timedelta(seconds=seconds)
+
+        target_minute = target_time.minute
+        target_second = 0
+        target_time = target_time.replace(second=target_second, microsecond=0)
+
         if target_time < now:
-            target_time += datetime.timedelta(hours=1)
-        wait_seconds = (target_time - now).total_seconds() + delay
-        update_status(name, status="Waiting for rolls", reset=target_time.strftime('%H:%M:%S'))
-        log_msg(f"Waiting for rolls reset. Target: {target_time.strftime('%H:%M:%S')}, delay: {delay}s", name)
+            target_time += datetime.timedelta(minutes=1)
+
+        wait_seconds = (target_time - now).total_seconds() + delay_seconds
+        log_function(f"[{client.user}] Waiting for reset. Target time: {target_time.strftime('%H:%M:%S')}, additional delay: {delay_seconds} seconds", preset_name)
         await asyncio.sleep(wait_seconds)
 
-    await client.start(preset["token"])
 
-def display_menu():
-    def change_page(key):
-        global current_page
-        max_page = (len(running_presets) - 1) // presets_per_page
-        current_page = max(0, current_page - 1) if key == 'k' else min(max_page, current_page + 1)
+    async def wait_for_rolls_reset(reset_time_minutes, delay_seconds, log_function, preset_name):
+        now = datetime.datetime.now()
+        target_minute = (now.minute + reset_time_minutes) % 60
+        target_second = 0
+        target_time = now.replace(minute=target_minute, second=target_second, microsecond=0)
 
-    keyboard.add_hotkey('k', change_page, args=('k',))
-    keyboard.add_hotkey('l', change_page, args=('l',))
+        if target_time < now:
+            target_time += datetime.timedelta(hours=1)
 
-    with Live(console=console, screen=True, refresh_per_second=4) as live:
-        while running_presets:
-            table = Table(title=f"Running Presets - Page {current_page + 1}")
-            table.add_column("Preset", style="cyan")
-            table.add_column("Last Char", style="magenta")
-            table.add_column("Status", style="green")
-            table.add_column("Refresh", style="yellow")
-            table.add_column("Logs", style="dim")
+        wait_seconds = (target_time - now).total_seconds() + delay_seconds
+        log_function(f"[{client.user}] Waiting for rolls reset. Target time: {target_time.strftime('%H:%M:%S')}, additional delay: {delay_seconds} seconds", preset_name)
+        await asyncio.sleep(wait_seconds)
 
-            with preset_statuses_lock:
-                start = current_page * presets_per_page
-                end = start + presets_per_page
-                for name, status in list(preset_statuses.items())[start:end]:
-                    log_text = "\n".join(preset_logs.get(name, []))
-                    table.add_row(name, status["last_character"], status["status"], status["reset_time"], log_text)
-            live.update(table)
-            time.sleep(0.25)
+
+    client.run(token)
+
+
+def print_log(message, preset_name):
+    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}][{preset_name}] {message}")
+
+
 
 def main_menu():
     while True:
-        actions = {
-            'Run Preset': select_and_run,
-            'Run Multiple Presets': select_and_run_multiple,
-            'Exit': sys.exit
-        }
-        questions = [inquirer.List('action', message="Select an option:", choices=actions.keys())]
-        answer = inquirer.prompt(questions)
-        actions[answer['action']]()
+        questions = [
+            inquirer.List('option',
+                          message="Please select an option:",
+                          choices=['Select and Run Preset', 'Select and Run Multiple Presets', 'Exit'],
+                          ),
+        ]
+        answers = inquirer.prompt(questions)
 
-def select_and_run():
-    presets_list = list(presets.keys())
-    if not presets_list:
+        if answers['option'] == 'Select and Run Preset':
+            select_and_run_preset()
+        elif answers['option'] == 'Select and Run Multiple Presets':
+            select_and_run_multiple_presets()
+        elif answers['option'] == 'Exit':
+            break
+
+
+
+def select_and_run_preset():
+    preset_list = list(presets.keys())
+    if not preset_list:
         print("No presets found.")
         return
-    questions = [inquirer.List('preset', message="Select a preset to run:", choices=presets_list)]
-    answer = inquirer.prompt(questions)
-    preset_name = answer['preset']
-    threading.Thread(target=asyncio.run, args=(run_bot(preset_name),)).start()
-    if not any(t.name == "display_thread" for t in threading.enumerate()):
-        threading.Thread(target=display_menu, name="display_thread", daemon=True).start()
 
-def select_and_run_multiple():
-    presets_list = list(presets.keys())
-    if not presets_list:
-        print("No presets found.")
-        return
-    questions = [inquirer.Checkbox('presets', message="Select presets to run:", choices=presets_list)]
+    questions = [
+        inquirer.List('preset',
+                      message="Select a preset to run:",
+                      choices=preset_list,
+                      ),
+    ]
     answers = inquirer.prompt(questions)
-    for preset_name in answers['presets']:
-        threading.Thread(target=asyncio.run, args=(run_bot(preset_name),)).start()
-    if not any(t.name == "display_thread" for t in threading.enumerate()):
-        threading.Thread(target=display_menu, name="display_thread", daemon=True).start()
+    selected_preset = answers['preset']
+
+    preset = presets[selected_preset]
+    key_mode = preset.get("key_mode", False)
+
+    threading.Thread(target=run_bot, args=(preset["token"], preset["prefix"],
+                                             preset["channel_id"], preset["roll_command"],
+                                             preset["min_kakera"], preset["delay_seconds"],
+                                             preset["mudae_prefix"], print_log, selected_preset, key_mode)).start()
+
+
+
+def select_and_run_multiple_presets():
+    preset_list = list(presets.keys())
+    if not preset_list:
+        print("No presets found.")
+        return
+
+    questions = [
+        inquirer.Checkbox('presets',
+                          message="Select presets to run (Use spacebar to select, Enter to confirm):",
+                          choices=preset_list,
+                          ),
+    ]
+    answers = inquirer.prompt(questions)
+    selected_presets = answers['presets']
+
+    for preset_name in selected_presets:
+        preset = presets[preset_name]
+        key_mode = preset.get("key_mode", False)
+        threading.Thread(target=run_bot, args=(preset["token"], preset["prefix"],
+                                                 preset["channel_id"], preset["roll_command"],
+                                                 preset["min_kakera"], preset["delay_seconds"],
+                                                 preset["mudae_prefix"], print_log, preset_name, key_mode)).start()
+
+
 
 if __name__ == "__main__":
     main_menu()
