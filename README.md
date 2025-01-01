@@ -79,7 +79,7 @@ This Python-based Discord bot automates the process of claiming characters from 
    console.log(`%cYou now have your token in the clipboard!`, 'font-size: 16px');
 
  ```
- ```
+ 
 2.  **Configure `presets.json`:** Fill the file using the bot tokens, channel IDs, roll commands, and other settings for each account. You can also set `min_kakera` to influence claiming.
 3.  **Run the Script:** Execute `python mudae_bot.py` to start the bot.
 4.  **Select Presets:** Choose the presets you want to run from the terminal menu.
