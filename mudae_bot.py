@@ -101,10 +101,8 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
                                     return
                             else:
                                 raise ValueError("Waiting time not found.")
-                        else:
-                            raise ValueError("Mudae message not found.")
-                    else:
-                        raise ValueError("Mudae message not found.")
+                
+                raise ValueError("Mudae message not found.")
 
             except ValueError as e:
                 error_count += 1
@@ -191,7 +189,6 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
                     await asyncio.sleep(5)
 
 
-
     async def start_roll_commands(client, channel, rolls_left, ignore_limit=False, key_mode_only_kakera=False):
         for _ in range(rolls_left):
             await channel.send(f"{mudae_prefix}{roll_command}")
@@ -276,7 +273,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
                     await asyncio.sleep(0.5)
                     await claim_character(client, channel, highest_claim_character_message, is_rt_claim=True)
                 else:
-                    log_function(f"[{client.user}] $rt ile alınacak karakter limiti karşılamıyor.", preset_name)
+                    log_function(f"[{client.user}] The character limit to be received with $rt does not meet.", preset_name)
 
 
         if lowest_claim_kakera_message:
@@ -308,7 +305,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
                 log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
                 await asyncio.sleep(3)
             except discord.errors.HTTPException:
-                log_function(f"[{client.user}] Reaksiyon eklenemedi. Muhtemelen karakter başkası tarafından çoktan alındı.", preset_name)
+                log_function(f"[{client.user}] Reaction could not be added. Probably the character has already been taken by someone else.", preset_name)
 
 
 
