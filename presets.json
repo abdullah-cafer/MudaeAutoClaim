@@ -4,7 +4,6 @@
     "prefix": "!",
     "channel_id": 1234567890,
     "roll_command": "wa",
-    "claim_limit": 1000,
     "delay_seconds": 0,
     "mudae_prefix": "$",
     "min_kakera": 50
@@ -14,7 +13,6 @@
     "prefix": ".",
     "channel_id": 9876543210,
     "roll_command": "wa",
-    "claim_limit": 1000,
     "delay_seconds": 0,
     "mudae_prefix": "$",
     "min_kakera": 75
@@ -24,7 +22,6 @@
     "prefix": "/",
     "channel_id": 1122334455,
     "roll_command": "wa",
-    "claim_limit": 1000,
     "delay_seconds": 0,
     "mudae_prefix": "$",
     "min_kakera": 0
