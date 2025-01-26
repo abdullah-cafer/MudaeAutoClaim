@@ -1,3 +1,5 @@
+[Türkçe](https://github.com/abdullah-cafer/MudaeAutoClaim/blob/main/README_TR.md) | [Español](https://github.com/abdullah-cafer/MudaeAutoClaim/blob/main/README_ES.md) | [한국어](https://github.com/abdullah-cafer/MudaeAutoClaim/blob/main/README_KO.md) | [日本語](https://github.com/abdullah-cafer/MudaeAutoClaim/blob/main/README_JA.md) | [中文](https://github.com/abdullah-cafer/MudaeAutoClaim/blob/main/README_ZH.md)
+
 # 💖✨ Mudae Auto-Claim Bot ✨💖
 
 [![Discord TOS Violation - **USE WITH EXTREME CAUTION**](https://img.shields.io/badge/Discord%20TOS-VIOLATION-red)](https://discord.com/terms) ⚠️ **RISK OF ACCOUNT BAN!** ⚠️
