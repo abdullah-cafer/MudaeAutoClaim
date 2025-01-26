@@ -56,7 +56,7 @@ Bu bot bir **KİŞİSEL BOT'tur (SELF-BOT)**. Kişisel botların kullanımı Dis
         "delay_seconds": 1,                         // ⏳  İşlemler arası gecikme (saniye, güvenlik için 0.8'in üzerinde tutun!)
         "mudae_prefix": "$",                        // 💰  Mudae'nin komut ön eki (genellikle $)
         "min_kakera": 50,                           // 💎  Karakter almak için minimum kakera değeri (her şeyi almak için 0)
-        "key_mode": false                           // 🔑  Anahtar Modunu etkinleştirin mi? (doğru/yanlış - Kakera odaklı çekim için)
+        "key_mode": false                           // 🔑  Anahtar Modunu etkinleştirin mi? (true/false - Kakera odaklı çekim için)
       },
       "KakeraAvcısıBotu": {   // 🚀 Başka bir harika ön ayar!
         "token": "SİZİN_DİSCORD_HESAP_TOKENİNİZ_2",
