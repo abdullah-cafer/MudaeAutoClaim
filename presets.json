@@ -1,29 +1,56 @@
 {
   "preset1": {
-    "token": "YOUR_BOT_TOKEN",
+    "token": "YOUR_TOKEN",
     "prefix": "!",
     "channel_id": 1234567890,
     "roll_command": "wa",
-    "delay_seconds": 0,
+    "delay_seconds": 1,
     "mudae_prefix": "$",
-    "min_kakera": 50
+    "min_kakera": 50,
+    "key_mode": false,
+    "start_delay": 5,
+    "snipe_mode": true,
+    "snipe_delay": 2,
+    "snipe_ignore_min_kakera_reset": false,
+    "wishlist": ["Nezuko Kamado", "Rem"],
+    "series_snipe_mode": false,
+    "series_snipe_delay": 3,
+    "series_wishlist": ["Demon Slayer"]
   },
   "preset2": {
-    "token": "ANOTHER_BOT_TOKEN",
+    "token": "ANOTHER_TOKEN",
     "prefix": ".",
     "channel_id": 9876543210,
     "roll_command": "wa",
-    "delay_seconds": 0,
+    "delay_seconds": 1.5,
     "mudae_prefix": "$",
-    "min_kakera": 75
+    "min_kakera": 75,
+    "key_mode": true,
+    "start_delay": 10,
+    "snipe_mode": false,
+    "snipe_delay": 5,
+    "snipe_ignore_min_kakera_reset": true,
+    "wishlist": [],
+    "series_snipe_mode": true,
+    "series_snipe_delay": 2,
+    "series_wishlist": ["Re:Zero", "Fate"]
   },
   "preset3": {
-    "token": "YOUR_THIRD_BOT_TOKEN",
+    "token": "YOUR_THIRD_TOKEN",
     "prefix": "/",
     "channel_id": 1122334455,
-    "roll_command": "wa",
-    "delay_seconds": 0,
+    "roll_command": "ha",
+    "delay_seconds": 0.8,
     "mudae_prefix": "$",
-    "min_kakera": 0
+    "min_kakera": 0,
+    "key_mode": false,
+    "start_delay": 0,
+    "snipe_mode": false,
+    "snipe_delay": 5,
+    "snipe_ignore_min_kakera_reset": false,
+    "wishlist": [],
+    "series_snipe_mode": false,
+    "series_snipe_delay": 5,
+    "series_wishlist": []
   }
 }
