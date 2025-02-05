@@ -1,6 +1,4 @@
-[Türkçe](https://github.com/abdullah-cafer/MudaeAutoClaim/blob/main/README_TR.md) | [Español](https://github.com/abdullah-cafer/MudaeAutoClaim/blob/main/README_ES.md) | [한국어](https://github.com/abdullah-cafer/MudaeAutoClaim/blob/main/README_KO.md) | [日本語](https://github.com/abdullah-cafer/MudaeAutoClaim/blob/main/README_JA.md) | [中文](https://github.com/abdullah-cafer/MudaeAutoClaim/blob/main/README_ZH.md)
-
-# 💖✨ Mudae Auto-Claim Bot ✨💖
+# 💖✨ MudaRemote: Enhanced Mudae Auto-Claim Bot ✨💖
 
 [![Discord TOS Violation - **USE WITH EXTREME CAUTION**](https://img.shields.io/badge/Discord%20TOS-VIOLATION-red)](https://discord.com/terms) ⚠️ **RISK OF ACCOUNT BAN!** ⚠️
 
@@ -16,12 +14,14 @@ This bot is a **SELF-BOT**. Using self-bots is **STRICTLY PROHIBITED** by Discor
 
 ---
 
-## 🚀 Unleash the Power of Automation in Mudae! (Responsibly!) 🚀
+## 🚀 Take Your Mudae Game to the Next Level with MudaRemote! (Responsibly!) 🚀
 
-The **Mudae Auto-Claim Bot** is your Python-powered assistant for automating tasks in the popular Mudae Discord bot!  Streamline your character collection, maximize your kakera gains, and take your Mudae game to the next level! 🌟
+**MudaRemote** is a powerful, open-source Python bot designed to automate tasks for the popular Mudae Discord bot. Building upon the foundation of the original Mudae Auto-Claim Bot, MudaRemote introduces exciting new features, including **real-time character and series sniping**, enhanced console logging, and more! Streamline your collection, maximize your kakera gains, and dominate the Mudae universe – all while being mindful of Discord's Terms of Service! 🌟
 
-**✨  Key Features That Make This Bot Shine: ✨**
+**✨  Key Features That Make MudaRemote Shine: ✨**
 
+*   **🎯 Real-time Character Sniping:**  **INSTANTLY claim characters from your wishlist** as soon as they appear in the Mudae channel! No more missing out on your favorites! 🚀
+*   **🎬 Real-time Series Sniping:**  Target characters from specific anime or game series!  **Add series keywords to your `series_wishlist`**, and MudaRemote will automatically snipe characters belonging to those series in real-time! Perfect for focused collections! 🚀
 *   **👯‍♀️ Multi-Account Mastery:**  Run **multiple Discord accounts simultaneously**! Manage all your Mudae endeavors from one script! 🚀
 *   **🤖 Fully Automated Rolling & Claiming:**  Sit back and relax! The bot **automatically rolls, detects claimable characters & kakera, and claims them for you!**  ✨
 *   **💎 Kakera-Smart Claiming:**  Set your **minimum `kakera` value**!  The bot intelligently prioritizes claiming characters with **high kakera value** (or claim everything if you want!). 🧠
@@ -31,7 +31,8 @@ The **Mudae Auto-Claim Bot** is your Python-powered assistant for automating tas
 *   **⏱️ Customizable Delays - Be Human-Like!**  Adjust delays to **mimic human behavior** and **minimize the risk of rate-limiting**.  🤫
 *   **🔑 Key Mode - Kakera Collection On Steroids!**  Enable "Key Mode" and the bot will **relentlessly roll for kakera** even when claim rights are down! Never stop collecting! 💰
 *   **🗂️ Preset Power - Configuration Made Easy!**  Manage settings for **all your accounts in one organized `presets.json` file!**  Simplicity at its finest! 📂
-*   **📊 Real-time Console Monitoring - Stay Informed!**  Watch the bot in action! **Real-time logs and status updates** right in your console!  👀
+*   **📊 Real-time Color Console Monitoring - Stay Informed!**  Watch the bot in action with **visually distinct and informative colored logs** right in your console!  Different colors for info, claims, kakera, errors, and more! 👀
+*   **⏱️ Startup Delay - Smoother Bot Entry:** Configure a **startup delay** to give your bot a smoother entry into Discord, potentially reducing rate-limiting risks, especially when running multiple bots! ⏳
 *   **📜 Detailed Logging - Keep Track of Your Treasures!**  Maintain a **record of all bot actions and claimed characters**! Your Mudae history at your fingertips! 📖
 
 ---
@@ -58,7 +59,15 @@ The **Mudae Auto-Claim Bot** is your Python-powered assistant for automating tas
         "delay_seconds": 1,                         // ⏳  Delay between actions (seconds, keep it above 0.8 for safety!)
         "mudae_prefix": "$",                        // 💰  Mudae's command prefix (usually $)
         "min_kakera": 50,                           // 💎  Minimum kakera value to claim characters (0 to claim all)
-        "key_mode": false                           // 🔑  Enable Key Mode? (true/false - for Kakera-focused rolling)
+        "key_mode": false,                          // 🔑  Enable Key Mode? (true/false - for Kakera-focused rolling)
+        "start_delay": 5,                           // ⏱️ Startup delay in seconds (optional, default 0)
+        "snipe_mode": true,                         // 🎯 Enable real-time character sniping? (true/false)
+        "snipe_delay": 2,                           // ⏳ Delay before claiming sniped character (seconds)
+        "snipe_ignore_min_kakera_reset": false,     // 💎 Ignore min_kakera when claim rights are low (<1h)? (true/false)
+        "wishlist": ["Nezuko Kamado", "Rem"],       // 📝 List of character names to snipe (case-insensitive)
+        "series_snipe_mode": true,                  // 🎬 Enable real-time series sniping? (true/false)
+        "series_snipe_delay": 3,                    // ⏳ Delay before claiming series sniped character (seconds)
+        "series_wishlist": ["Demon Slayer", "Re:Zero"] // 📝 List of series keywords to snipe (case-insensitive)
       },
       "KakeraHunterBot": {   // 🚀 Another awesome preset!
         "token": "YOUR_DISCORD_ACCOUNT_TOKEN_2",
@@ -68,7 +77,15 @@ The **Mudae Auto-Claim Bot** is your Python-powered assistant for automating tas
         "delay_seconds": 1.5,
         "mudae_prefix": "$",
         "min_kakera": 75,
-        "key_mode": true
+        "key_mode": true,
+        "start_delay": 10,
+        "snipe_mode": false,
+        "snipe_delay": 5,
+        "snipe_ignore_min_kakera_reset": false,
+        "wishlist": [],
+        "series_snipe_mode": false,
+        "series_snipe_delay": 5,
+        "series_wishlist": []
       }
       // ... Add more presets for all your accounts! 🚀🚀🚀
     }
@@ -85,6 +102,14 @@ The **Mudae Auto-Claim Bot** is your Python-powered assistant for automating tas
     *   **`mudae_prefix`**:  The **Mudae bot's prefix** (usually `$`). 💰
     *   **`min_kakera`**:  **Minimum kakera value** for claiming characters. `0` to claim everything! 💎
     *   **`key_mode`**:  `true` or `false`. `true` for **Kakera Key Mode** - continuous kakera rolling even when claim rights are down! 🔑
+    *   **`start_delay`**:  **Startup delay in seconds**.  Optional.  Default is `0`.  Useful for giving bots a smoother entry. ⏱️
+    *   **`snipe_mode`**:  `true` or `false`.  Enable **real-time character sniping** based on your `wishlist`. 🎯
+    *   **`snipe_delay`**:  **Delay in seconds** before claiming a sniped character. Adjust as needed. ⏳
+    *   **`snipe_ignore_min_kakera_reset`**:  `true` or `false`.  If `true`, the bot will **ignore `min_kakera` limit when claim rights are low** (less than 1 hour remaining).  For more aggressive sniping when resets are near. 💎
+    *   **`wishlist`**:  A **list of character names** to snipe.  Case-insensitive.  Example: `["Nezuko Kamado", "Rem"]`. 📝
+    *   **`series_snipe_mode`**: `true` or `false`. Enable **real-time series sniping** based on your `series_wishlist`. 🎬
+    *   **`series_snipe_delay`**: **Delay in seconds** before claiming a series-sniped character. Adjust as needed. ⏳
+    *   **`series_wishlist`**:  A **list of series keywords** to snipe characters from. Case-insensitive. Example: `["Demon Slayer", "Re:Zero"]`. 📝
 
 4.  **🚀 Run the Bot!** Open your terminal/command prompt, navigate to the bot's folder, and type:
 
@@ -137,7 +162,7 @@ The **Mudae Auto-Claim Bot** is your Python-powered assistant for automating tas
 
     **🔒  TOKEN SECURITY IS PARAMOUNT! 🔒  Treat your token like a SUPER SECRET PASSWORD!  DO NOT SHARE IT WITH ANYONE!  Sharing your token gives full access to your Discord account!** 🛡️
 
-2.  **Configure `presets.json`:**  Fill in your `presets.json` file with tokens, channel IDs, roll commands, delays, etc.  See the "Installation" section for details. 📝
+2.  **Configure `presets.json`:**  Fill in your `presets.json` file with tokens, channel IDs, roll commands, delays, sniping settings, etc.  See the "Installation" section for details. 📝
 
 3.  **Run `mudae_bot.py`:**  Start the bot from your terminal. 🚀
 
@@ -151,11 +176,22 @@ The **Mudae Auto-Claim Bot** is your Python-powered assistant for automating tas
 
 ## 🤝  Join the Community! Contributing is Welcome! 🤝
 
-Want to make the Mudae Auto-Claim Bot even better?  Contributions are highly appreciated!  Got ideas, bug fixes, or new features?  Let's collaborate!
+Want to make MudaRemote even better?  Contributions are highly appreciated!  Got ideas, bug fixes, or new features?  Let's collaborate!
 
 *   **🐞 Open Issues:** Report bugs, suggest features, discuss improvements!
 *   **🛠️ Submit Pull Requests:**  Contribute code changes!  Please provide clear descriptions of your changes.
 
-**🙏  Remember to use this bot responsibly and ethically.  Be aware of and respect Discord's Terms of Service. 🙏**
+**🙏  Remember to use MudaRemote responsibly and ethically.  Be aware of and respect Discord's Terms of Service. 🙏**
 
 **Happy Mudae-ing!  (But be careful!)** 😉
+
+---
+
+**Credits:**
+
+*   This bot is based on the original "Mudae Auto-Claim Bot" project.
+*   Thanks to all contributors and the open-source community!
+
+**License:**
+
+[MIT License](LICENSE)
