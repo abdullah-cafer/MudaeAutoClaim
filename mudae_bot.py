@@ -25,7 +25,7 @@ except FileNotFoundError:
 # Target bot ID (Mudae's ID)
 TARGET_BOT_ID = 432610292342587392
 
-# Log list
+# Log list (Not used anymore, logs are directly written to file and console)
 log_list = []
 
 # ANSI color codes
@@ -42,7 +42,21 @@ COLORS = {
 def color_log(message, preset_name, log_type="INFO"):
     color_code = COLORS.get(log_type.upper(), COLORS["INFO"])
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    print(f"{color_code}[{timestamp}][{preset_name}] {message}{COLORS['ENDC']}")
+    log_message = f"[{timestamp}][{preset_name}] {message}"
+    print(f"{color_code}{log_message}{COLORS['ENDC']}")
+    return log_message
+
+def write_log_to_file(log_message):
+    try:
+        with open("logs.txt", "a") as log_file:
+            log_file.write(log_message + "\n")
+    except Exception as e:
+        print(f"Log dosyasına yazma hatası: {e}")
+
+def print_log(message, preset_name, log_type="INFO"):
+    log_message_formatted = color_log(message, preset_name, log_type)
+    write_log_to_file(log_message_formatted)
+
 
 def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_seconds, mudae_prefix,
             log_function, preset_name, key_mode, start_delay, snipe_mode, snipe_delay,
@@ -268,7 +282,6 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
                                 try:
                                     await button.click()
                                     log_function(f"[{client.muda_name}] Claimed Kakera: {embed.author.name}", preset_name, "KAKERA")
-                                    log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Claimed Kakera: {embed.author.name}")
                                     await asyncio.sleep(3)
                                 except discord.errors.HTTPException as e:
                                     log_function(f"[{client.muda_name}] Kakera claim hatası: {e}", preset_name, "ERROR")
@@ -317,7 +330,6 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
                         try:
                             await button.click()
                             log_function(f"[{client.muda_name}] {log_message}: {msg.embeds[0].author.name}", client.preset_name, log_type)
-                            log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
                             await asyncio.sleep(3)
                             return
                         except discord.errors.HTTPException as e:
@@ -326,7 +338,6 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
             try:
                 await msg.add_reaction("✅")
                 log_function(f"[{client.muda_name}] {log_message}: {msg.embeds[0].author.name}", client.preset_name, log_type)
-                log_list.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {log_message}: {msg.embeds[0].author.name}")
                 await asyncio.sleep(3)
             except discord.errors.HTTPException:
                 log_function(f"[{client.muda_name}] Reaksiyon eklenemedi. Muhtemelen karakter başkası tarafından çoktan alındı.", client.preset_name, "ERROR")
@@ -414,20 +425,18 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
 
     client.run(token)
 
-def print_log(message, preset_name, log_type="INFO"):
-    color_log(message, preset_name, log_type)
 
 def show_banner():
     banner = r"""
-  __  __ _    _ _____          _____  ______ __  __  ____ _______ ______ 
+  __  __ _    _ _____          _____  ______ __  __  ____ _______ ______
  |  \/  | |  | |  __ \   /\   |  __ \|  ____|  \/  |/ __ \__   __|  ____|
- | \  / | |  | | |  | | /  \  | |__) | |__  | \  / | |  | | | |  | |__   
- | |\/| | |  | | |  | |/ /\ \ |  _  /|  __| | |\/| | |  | | | |  |  __|  
- | |  | | |__| | |__| / ____ \| | \ \| |____| |  | | |__| | | |  | |____ 
+ | \  / | |  | | |  | | /  \  | |__) | |__  | \  / | |  | | | |  | |__
+ | |\/| | |  | | |  | |/ /\ \ |  _  /|  __| | |\/| | |  | | | |  |  __|
+ | |  | | |__| | |__| / ____ \| | \ \| |____| |  | | |__| | | |  | |____
  |_|  |_|\____/|_____/_/    \_\_|  \_\______|_|  |_|\____/  |_|  |______|
-                                                                         
-                                                                         
-    """
+
+
+                                                                         """
     print("\033[1;36m" + banner + "\033[0m")
     print("\033[1;33mWelcome to MudaRemote - Your Remote Mudae Assistant\033[0m\n")
 
