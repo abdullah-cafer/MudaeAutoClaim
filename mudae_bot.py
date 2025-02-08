@@ -409,7 +409,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
             character_name = None
             if embed.author and embed.author.name:
                 character_name = embed.author.name
-                if any(wish and wish.lower() in character_name.lower() for wish in client.wishlist):
+                if any(wish and wish.lower() == character_name.lower() for wish in client.wishlist):
                     if message.id not in client.sniped_messages:
                         client.sniped_messages.add(message.id)
                         log_function(f"[{client.muda_name}] (Real-time) Snipe candidate found: {character_name}", client.preset_name, "CLAIM") # Log as CLAIM
